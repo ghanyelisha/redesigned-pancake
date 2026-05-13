@@ -454,8 +454,8 @@ export default function Home() {
               <div className="grid gap-0 lg:grid-cols-5">
                 <div className="relative min-h-[220px] bg-slate-900 lg:col-span-2">
                   <Image
-                    src="https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=1200&auto=format&fit=crop"
-                    alt="Coach bus on a highway at dusk, representing inter-urban travel."
+                    src="/images/Bamenda.jpg"
+                    alt="Amour Mezam Park — Bamenda inter-urban motor park."
                     fill
                     className="object-cover opacity-80"
                     sizes="(max-width: 1024px) 100vw, 40vw"
@@ -463,7 +463,7 @@ export default function Home() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/20 to-transparent" />
                   <p className="absolute bottom-4 left-4 right-4 text-sm font-medium text-white">
-                    Photo placeholder — inter-urban coach corridor mood, not a specific operator.
+                    Amour Mezam Park — Popular Bamenda inter-urban motor park.
                   </p>
                 </div>
                 <div className="flex flex-col justify-center p-8 lg:col-span-3">
