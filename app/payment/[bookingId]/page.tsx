@@ -28,6 +28,7 @@ export default function PaymentPage({ params }: any) {
           // release and redirect to search
           if (booking) {
             // mark booking failed
+            // mark booking failed
             const ref = doc(db,'bookings', bookingId);
             updateDoc(ref, { paymentStatus: 'failed' }).catch(()=>{});
           }
