@@ -1,5 +1,6 @@
 "use client";
 import { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 
 export default function PassengerForm({ onSubmit, initial }: any) {
   const [mobile, setMobile] = useState(initial?.mobile || '');
@@ -9,14 +10,17 @@ export default function PassengerForm({ onSubmit, initial }: any) {
   const [gender, setGender] = useState(initial?.gender || 'Male');
   const [idType, setIdType] = useState(initial?.idType || 'National ID');
   const [idNumber, setIdNumber] = useState(initial?.idNumber || '');
-
   const [errors, setErrors] = useState<any>({});
+
+  const inputClass = "w-full px-3 py-2 text-sm border border-slate-200 rounded-lg outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors bg-white placeholder:text-slate-400";
+  const labelClass = "block text-xs font-semibold text-slate-600 mb-1";
+  const errorClass = "text-xs text-red-500 mt-1";
 
   function validate() {
     const e: any = {};
-    if (!mobile.match(/^\+?\d{7,15}$/)) e.mobile = 'Enter a valid mobile number with country code';
-    if (!name) e.name = 'Enter name';
-    if (!surname) e.surname = 'Enter surname';
+    if (!mobile.match(/^\+?\d{7,15}$/)) e.mobile = 'Enter a valid number';
+    if (!name.trim()) e.name = 'Required';
+    if (!surname.trim()) e.surname = 'Required';
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -28,37 +32,79 @@ export default function PassengerForm({ onSubmit, initial }: any) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-3">
-      <div className="flex gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-sm">CM</span>
-          <input value={mobile} onChange={(e)=>setMobile(e.target.value)} placeholder="+237 6..." className="p-2 border rounded" />
+    <form onSubmit={submit} className="space-y-4">
+      {/* Contact row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className={labelClass}>Mobile Number</label>
+          <div className="flex">
+            <span className="px-3 py-2 text-sm bg-slate-50 border border-r-0 border-slate-200 rounded-l-lg text-slate-600 font-medium">+237</span>
+            <input
+              value={mobile}
+              onChange={(e) => setMobile(e.target.value)}
+              placeholder="6 xx xx xx xx"
+              className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-r-lg outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-colors"
+            />
+          </div>
+          {errors.mobile && <p className={errorClass}>{errors.mobile}</p>}
         </div>
-        <input value={email} onChange={(e)=>setEmail(e.target.value)} placeholder="Email" className="p-2 border rounded flex-1" />
+        <div>
+          <label className={labelClass}>Email (optional)</label>
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" className={inputClass} />
+        </div>
       </div>
-      <div className="flex gap-2">
-        <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Name" className="p-2 border rounded flex-1" />
-        <input value={surname} onChange={(e)=>setSurname(e.target.value)} placeholder="Surname" className="p-2 border rounded flex-1" />
+
+      {/* Name row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className={labelClass}>First Name</label>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="First name" className={inputClass} />
+          {errors.name && <p className={errorClass}>{errors.name}</p>}
+        </div>
+        <div>
+          <label className={labelClass}>Last Name</label>
+          <input value={surname} onChange={(e) => setSurname(e.target.value)} placeholder="Last name" className={inputClass} />
+          {errors.surname && <p className={errorClass}>{errors.surname}</p>}
+        </div>
       </div>
+
+      {/* Gender */}
       <div>
-        <select value={gender} onChange={(e)=>setGender(e.target.value)} className="p-2 border rounded">
+        <label className={labelClass}>Gender</label>
+        <select value={gender} onChange={(e) => setGender(e.target.value)} className={inputClass}>
           <option>Male</option>
           <option>Female</option>
         </select>
       </div>
-      <div className="p-3 border rounded bg-red-50 text-red-700">Restricted items: flammable goods including fuel, gas bottles, and compressed substances are strictly prohibited on all MyBus services.</div>
-      <div>
-        <select value={idType} onChange={(e)=>setIdType(e.target.value)} className="p-2 border rounded">
-          <option>National ID</option>
-          <option>Passport</option>
-          <option>Birth Certificate</option>
-        </select>
-        <input value={idNumber} onChange={(e)=>setIdNumber(e.target.value)} placeholder="ID Number" className="p-2 border rounded ml-2" />
+
+      {/* Restricted items notice */}
+      <div className="flex gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+        <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+        <span>Restricted: flammable goods, fuel, gas bottles, and compressed substances are strictly prohibited on all MyBus services.</span>
       </div>
-      <div className="flex justify-between items-center">
-        <div className="text-lg font-bold">Total: FCFA 0.00</div>
-        <button type="submit" className="bg-blue-900 text-white px-6 py-2 rounded-full">Continue</button>
+
+      {/* ID */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className={labelClass}>ID Type</label>
+          <select value={idType} onChange={(e) => setIdType(e.target.value)} className={inputClass}>
+            <option>National ID</option>
+            <option>Passport</option>
+            <option>Birth Certificate</option>
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>ID Number</label>
+          <input value={idNumber} onChange={(e) => setIdNumber(e.target.value)} placeholder="ID number" className={inputClass} />
+        </div>
       </div>
+
+      <button
+        type="submit"
+        className="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-3 rounded-xl text-sm transition-colors"
+      >
+        Continue to Payment
+      </button>
     </form>
   );
 }
