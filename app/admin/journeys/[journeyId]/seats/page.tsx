@@ -116,26 +116,26 @@ export default function AdminSeatsPage() {
         ))}
       </div>
 
-      {/* Seat map panel */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        {loading ? (
-          <div className="flex items-center justify-center h-40">
-            <div className="w-8 h-8 border-2 border-teal-700 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : seatMap && journey ? (
-          <AdminSeatMap
-            seatMap={seatMap}
-            bookings={bookings}
-            journey={journey}
-            journeyId={journeyId}
-            onRefresh={handleRefresh}
-          />
-        ) : (
+      {/* Seat map — each column renders its own card inside AdminSeatMap */}
+      {loading ? (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex items-center justify-center h-40">
+          <div className="w-8 h-8 border-2 border-teal-700 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : seatMap && journey ? (
+        <AdminSeatMap
+          seatMap={seatMap}
+          bookings={bookings}
+          journey={journey}
+          journeyId={journeyId}
+          onRefresh={handleRefresh}
+        />
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
           <p className="text-sm text-slate-400 text-center py-8">
             No seat map available for this journey.
           </p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

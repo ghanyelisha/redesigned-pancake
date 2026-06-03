@@ -1,26 +1,21 @@
 "use client";
 import { useEffect, useState } from 'react';
+import { Clock } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
 import { listenSeatMap, fetchSeatMap, holdSeatTransaction } from '../lib/firestore';
-import type { SeatMap as SeatMapType } from '../lib/firestore';
+import type { SeatMap as SeatMapType, Seat } from '../lib/firestore';
 
 // ─── SVG Icons ───────────────────────────────────────────────────────────────
 
 function SteeringWheel() {
   return (
     <svg width="40" height="40" viewBox="0 0 44 44" fill="none" aria-label="Driver">
-      {/* Outer ring */}
       <circle cx="22" cy="22" r="19" stroke="#1e293b" strokeWidth="4" fill="none" />
-      {/* Centre hub */}
       <circle cx="22" cy="22" r="5" fill="#1e293b" />
-      {/* Top spoke */}
       <line x1="22" y1="17" x2="22" y2="6" stroke="#1e293b" strokeWidth="3.5" strokeLinecap="round" />
-      {/* Bottom-left spoke */}
       <line x1="22" y1="27" x2="14" y2="36" stroke="#1e293b" strokeWidth="3.5" strokeLinecap="round" />
-      {/* Bottom-right spoke */}
       <line x1="22" y1="27" x2="30" y2="36" stroke="#1e293b" strokeWidth="3.5" strokeLinecap="round" />
-      {/* Left hand */}
       <path d="M4 18 Q2 22 5 25 Q7 27 10 24 Q13 21 11 17 Q9 13 6 15 Z" fill="#475569" />
-      {/* Right hand */}
       <path d="M40 18 Q42 22 39 25 Q37 27 34 24 Q31 21 33 17 Q35 13 38 15 Z" fill="#475569" />
     </svg>
   );
@@ -29,39 +24,76 @@ function SteeringWheel() {
 function DoorIcon() {
   return (
     <svg width="52" height="44" viewBox="0 0 52 44" fill="none" aria-label="Door">
-      {/* Frame */}
       <rect x="1" y="1" width="50" height="42" rx="3" stroke="#94a3b8" strokeWidth="2" fill="#f1f5f9" />
-      {/* Left panel */}
       <rect x="4" y="4" width="20" height="36" rx="2" fill="#e2e8f0" stroke="#cbd5e1" strokeWidth="1" />
-      {/* Right panel */}
       <rect x="28" y="4" width="20" height="36" rx="2" fill="#e2e8f0" stroke="#cbd5e1" strokeWidth="1" />
-      {/* Left handle */}
       <circle cx="22" cy="22" r="2.5" fill="#94a3b8" />
-      {/* Right handle */}
       <circle cx="30" cy="22" r="2.5" fill="#94a3b8" />
     </svg>
   );
+}
+
+// ─── Hold urgency ─────────────────────────────────────────────────────────────
+
+type HoldUrgency = 'normal' | 'warning' | 'critical';
+
+function heldUrgency(heldUntil: Timestamp | null | undefined): HoldUrgency {
+  if (!heldUntil) return 'critical';
+  const rem = heldUntil.toMillis() - Date.now();
+  if (rem <= 60_000) return 'critical';   // < 1 min
+  if (rem <= 300_000) return 'warning';   // < 5 min
+  return 'normal';
 }
 
 // ─── Seat shape ───────────────────────────────────────────────────────────────
 
 type SeatStatus = 'available' | 'booked' | 'held' | 'selected';
 
-function Seat({
+function SeatBtn({
   num,
   status,
+  heldUntil,
   onClick,
 }: {
   num: string;
   status: SeatStatus;
+  heldUntil?: Timestamp | null;
   onClick?: () => void;
 }) {
   const isBooked = status === 'booked';
-  const isHeld = status === 'held';
-  const isSel = status === 'selected';
+  const isHeld   = status === 'held';
+  const isSel    = status === 'selected';
 
-  const fill = isSel ? '#0f766e' : isBooked ? '#374151' : isHeld ? '#d97706' : '#dc2626';
-  const opacity = isBooked ? 0.45 : 1;
+  const urg: HoldUrgency = isHeld ? heldUrgency(heldUntil) : 'normal';
+
+  // Fill colour
+  const fill = isSel
+    ? '#0f766e'
+    : isBooked
+    ? '#374151'
+    : isHeld
+    ? urg === 'critical' ? '#dc2626' : urg === 'warning' ? '#f97316' : '#d97706'
+    : '#dc2626'; // available → red (client brand)
+
+  // Label colour
+  const labelColor = isSel
+    ? '#0f766e'
+    : isBooked
+    ? '#6b7280'
+    : isHeld
+    ? urg === 'critical' ? '#991b1b' : urg === 'warning' ? '#9a3412' : '#92400e'
+    : '#dc2626';
+
+  // Wrapper ring/animation for held urgency
+  const wrapCls = isHeld
+    ? urg === 'critical'
+      ? 'animate-pulse ring-2 ring-red-400 ring-offset-1 rounded'
+      : urg === 'warning'
+      ? 'ring-2 ring-orange-400 ring-offset-1 rounded'
+      : ''
+    : isSel
+    ? 'ring-2 ring-teal-400 ring-offset-1 rounded'
+    : '';
 
   return (
     <button
@@ -70,27 +102,18 @@ function Seat({
       title={`Seat ${num} — ${status}`}
       className={`flex flex-col items-center gap-0.5 rounded transition-all active:scale-95 ${
         isBooked ? 'cursor-not-allowed' : 'cursor-pointer'
-      } ${isSel ? 'ring-2 ring-teal-400 ring-offset-1 rounded' : ''}`}
-      style={{ opacity }}
+      } ${wrapCls}`}
+      style={{ opacity: isBooked ? 0.45 : 1 }}
     >
       <svg width="34" height="30" viewBox="0 0 34 30" fill="none">
-        {/* Backrest */}
         <rect x="3" y="0" width="28" height="14" rx="5" fill={fill} />
-        {/* Seat cushion */}
         <rect x="1" y="13" width="32" height="9" rx="3" fill={fill} opacity="0.82" />
-        {/* Left armrest */}
         <rect x="0" y="11" width="4" height="13" rx="2" fill={fill} opacity="0.65" />
-        {/* Right armrest */}
         <rect x="30" y="11" width="4" height="13" rx="2" fill={fill} opacity="0.65" />
-        {/* Left leg */}
         <rect x="5" y="22" width="4" height="7" rx="1.5" fill={fill} opacity="0.5" />
-        {/* Right leg */}
         <rect x="25" y="22" width="4" height="7" rx="1.5" fill={fill} opacity="0.5" />
       </svg>
-      <span
-        className="text-[10px] font-bold leading-none"
-        style={{ color: isSel ? '#0f766e' : isBooked ? '#6b7280' : isHeld ? '#92400e' : '#dc2626' }}
-      >
+      <span className="text-[10px] font-bold leading-none" style={{ color: labelColor }}>
         {num}
       </span>
     </button>
@@ -98,16 +121,6 @@ function Seat({
 }
 
 // ─── Bus layout builder ───────────────────────────────────────────────────────
-//
-// All supported sizes: 30, 50, 70, 75, 80, 85  (n = k*5 + 20, k ≥ 0)
-//
-// Row 0  : [Steering wheel (left)]  | aisle | [s][s]      (2 seats right of driver)
-// [FRONT DOOR — right side only]
-// Row 1  : [s][s]  [empty]          | aisle | [s][s]      (2L + 2R)
-// Rows 2…k+1 : [s][s][s]           | aisle | [s][s]      (3L + 2R each)
-// Exit-door  : [s][s][s]           | aisle | [DOOR]      (3L, door right)
-// Row k+3    : [s][s][s]           | aisle | [s][s]      (3L + 2R)
-// Last       : [s][s][s][s][s][s]                        (6 full-width)
 
 type LayoutRow =
   | { kind: 'driver'; right: string[] }
@@ -120,33 +133,23 @@ function buildLayout(seatNums: string[]): LayoutRow[] {
   const rows: LayoutRow[] = [];
   let i = 0;
   const n = seatNums.length;
-
-  const take = (count: number) => {
-    const s = seatNums.slice(i, i + count);
-    i += count;
-    return s;
-  };
+  const take = (count: number) => { const s = seatNums.slice(i, i + count); i += count; return s; };
 
   if (n < 20) {
     rows.push({ kind: 'driver', right: take(Math.min(2, n)) });
-    while (i < n - 6 && n - i > 6) {
+    while (i < n - 6 && n - i > 6)
       rows.push({ kind: 'normal', left: take(3), right: take(Math.min(2, n - i - 6)) });
-    }
     if (i < n) rows.push({ kind: 'last', seats: take(n - i) });
     return rows;
   }
 
   const k = Math.round((n - 20) / 5);
-
-  rows.push({ kind: 'driver', right: take(2) });          // 2 seats
-  rows.push({ kind: 'front', left: take(2), right: take(2) }); // 4 seats
-  for (let r = 0; r < k; r++)
-    rows.push({ kind: 'normal', left: take(3), right: take(2) }); // 5k seats
-  rows.push({ kind: 'exit-door', left: take(3) });        // 3 seats
-  rows.push({ kind: 'normal', left: take(3), right: take(2) }); // 5 seats
-  rows.push({ kind: 'last', seats: take(6) });            // 6 seats
-  // Total: 2 + 4 + 5k + 3 + 5 + 6 = 20 + 5k ✓
-
+  rows.push({ kind: 'driver', right: take(2) });
+  rows.push({ kind: 'front', left: take(2), right: take(2) });
+  for (let r = 0; r < k; r++) rows.push({ kind: 'normal', left: take(3), right: take(2) });
+  rows.push({ kind: 'exit-door', left: take(3) });
+  rows.push({ kind: 'normal', left: take(3), right: take(2) });
+  rows.push({ kind: 'last', seats: take(6) });
   return rows;
 }
 
@@ -163,12 +166,20 @@ export default function SeatMap({
 }) {
   const [seatMap, setSeatMap] = useState<SeatMapType | null>(null);
   const [localSelected, setLocalSelected] = useState<string[]>(selectedSeats);
+  // 30 s tick so held-urgency colours re-render automatically
+  const [, setTick] = useState(0);
 
   useEffect(() => {
     fetchSeatMap(journeyId).then((m) => setSeatMap(m));
     const unsub = listenSeatMap(journeyId, (m) => setSeatMap(m));
     return () => unsub();
   }, [journeyId]);
+
+  // Tick every 30 s to refresh urgency colours without an extra Firestore read
+  useEffect(() => {
+    const t = setInterval(() => setTick((x) => x + 1), 30_000);
+    return () => clearInterval(t);
+  }, []);
 
   if (!seatMap) {
     return (
@@ -214,29 +225,57 @@ export default function SeatMap({
   }
 
   const available = seatNums.filter((n) => rawSeats[n]?.status === 'available').length;
-  const booked = seatNums.filter((n) => ['booked', 'held'].includes(rawSeats[n]?.status)).length;
+  const sold      = seatNums.filter((n) => ['booked', 'held'].includes(rawSeats[n]?.status)).length;
 
   const layout = buildLayout(seatNums);
 
-  const renderSeat = (num: string) => (
-    <Seat key={num} num={num} status={seatStatus(num)} onClick={() => handleClick(num)} />
-  );
+  const CELL  = 'flex items-center justify-center w-10';
+  const AISLE = 'w-6 shrink-0';
 
-  // Fixed cell width so every seat column aligns
-  const CELL = 'flex items-center justify-center w-10';
-  const AISLE = 'w-6 shrink-0'; // aisle gap between left and right sides
+  const renderSeat = (num: string) => (
+    <SeatBtn
+      key={num}
+      num={num}
+      status={seatStatus(num)}
+      heldUntil={(rawSeats[num] as Seat)?.heldUntil}
+      onClick={() => handleClick(num)}
+    />
+  );
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 select-none overflow-x-auto">
-      {/* Legend */}
+
+      {/* ── 15-minute hold notice ── */}
+      <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 mb-4">
+        <Clock className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-800 leading-snug">
+          <span className="font-semibold">Selected seats are held for 15 minutes.</span>{' '}
+          If payment is not completed within this time, the seat will be released and
+          another passenger may book it.
+        </p>
+      </div>
+
+      {/* ── Legend ── */}
       <div className="flex flex-wrap items-center gap-4 mb-5 text-xs font-medium text-slate-600">
         <span className="flex items-center gap-1.5">
           <span className="w-3.5 h-3.5 rounded-sm bg-red-600" />
           Available ({available})
         </span>
         <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded-sm bg-amber-500" />
+          Held — &gt;5 min
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded-sm bg-orange-500" />
+          Held — &lt;5 min
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded-sm bg-red-500 ring-2 ring-red-300" />
+          Held — &lt;1 min
+        </span>
+        <span className="flex items-center gap-1.5">
           <span className="w-3.5 h-3.5 rounded-sm bg-gray-500 opacity-50" />
-          Sold ({booked})
+          Sold ({sold})
         </span>
         <span className="flex items-center gap-1.5">
           <span className="w-3.5 h-3.5 rounded-sm bg-teal-700 ring-2 ring-teal-400" />
@@ -244,86 +283,57 @@ export default function SeatMap({
         </span>
       </div>
 
-      {/* Bus body */}
+      {/* ── Bus body ── */}
       <div className="inline-flex flex-col gap-2 mx-auto">
         {layout.map((row, ri) => {
 
-          // ── Row 0: driver + 2 seats on right ──────────────────────────────
           if (row.kind === 'driver') {
             return (
               <div key={ri} className="flex items-center gap-1">
-                {/* Steering wheel — driver seat (alone on front-left) */}
-                <div className={`${CELL} shrink-0`}>
-                  <SteeringWheel />
-                </div>
-                {/* Two empty cells to fill left column width (matches 3-seat rows below) */}
+                <div className={`${CELL} shrink-0`}><SteeringWheel /></div>
                 <div className={CELL} />
                 <div className={CELL} />
-                {/* Aisle */}
                 <div className={AISLE} />
-                {/* 2 seats right of driver */}
-                {row.right.map((n) => (
-                  <div key={n} className={CELL}>{renderSeat(n)}</div>
-                ))}
+                {row.right.map((n) => <div key={n} className={CELL}>{renderSeat(n)}</div>)}
               </div>
             );
           }
 
-          // ── Front-door row + row 1 (2L + 2R) ─────────────────────────────
           if (row.kind === 'front') {
             return (
               <div key={ri}>
-                {/* Front door — right side only, aligned with right seat column */}
                 <div className="flex items-center gap-1 mb-1">
-                  <div className={CELL} />
-                  <div className={CELL} />
-                  <div className={CELL} />
+                  <div className={CELL} /><div className={CELL} /><div className={CELL} />
                   <div className={AISLE} />
-                  {/* Door spans the width of the 2 right seats */}
                   <div className="flex items-center justify-center" style={{ width: 84 }}>
                     <DoorIcon />
                   </div>
                 </div>
-                {/* First passenger row: 2 left + empty + 2 right */}
                 <div className="flex items-center gap-1">
-                  {row.left.map((n) => (
-                    <div key={n} className={CELL}>{renderSeat(n)}</div>
-                  ))}
-                  {/* empty filler so left column always spans 3 cells */}
+                  {row.left.map((n) => <div key={n} className={CELL}>{renderSeat(n)}</div>)}
                   <div className={CELL} />
                   <div className={AISLE} />
-                  {row.right.map((n) => (
-                    <div key={n} className={CELL}>{renderSeat(n)}</div>
-                  ))}
+                  {row.right.map((n) => <div key={n} className={CELL}>{renderSeat(n)}</div>)}
                 </div>
               </div>
             );
           }
 
-          // ── Normal row: 3L + 2R ───────────────────────────────────────────
           if (row.kind === 'normal') {
             return (
               <div key={ri} className="flex items-center gap-1">
-                {row.left.map((n) => (
-                  <div key={n} className={CELL}>{renderSeat(n)}</div>
-                ))}
+                {row.left.map((n) => <div key={n} className={CELL}>{renderSeat(n)}</div>)}
                 <div className={AISLE} />
-                {row.right.map((n) => (
-                  <div key={n} className={CELL}>{renderSeat(n)}</div>
-                ))}
+                {row.right.map((n) => <div key={n} className={CELL}>{renderSeat(n)}</div>)}
               </div>
             );
           }
 
-          // ── Exit-door row: 3L + door on right ────────────────────────────
           if (row.kind === 'exit-door') {
             return (
               <div key={ri} className="flex items-center gap-1">
-                {row.left.map((n) => (
-                  <div key={n} className={CELL}>{renderSeat(n)}</div>
-                ))}
+                {row.left.map((n) => <div key={n} className={CELL}>{renderSeat(n)}</div>)}
                 <div className={AISLE} />
-                {/* Door replaces the 2 right seats */}
                 <div className="flex items-center justify-center" style={{ width: 84 }}>
                   <DoorIcon />
                 </div>
@@ -331,13 +341,10 @@ export default function SeatMap({
             );
           }
 
-          // ── Last row: 6 seats full-width ──────────────────────────────────
           if (row.kind === 'last') {
             return (
               <div key={ri} className="flex items-center gap-1 mt-1">
-                {row.seats.map((n) => (
-                  <div key={n} className={CELL}>{renderSeat(n)}</div>
-                ))}
+                {row.seats.map((n) => <div key={n} className={CELL}>{renderSeat(n)}</div>)}
               </div>
             );
           }
@@ -346,7 +353,7 @@ export default function SeatMap({
         })}
       </div>
 
-      {/* Selected seat chips */}
+      {/* ── Selected seat chips ── */}
       {localSelected.length > 0 && (
         <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-1.5">
           <span className="text-xs text-slate-500 font-medium mr-1 self-center">Selected:</span>

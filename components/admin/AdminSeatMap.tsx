@@ -711,8 +711,8 @@ export default function AdminSeatMap({
 
       {/* ── Main 2-column layout: seat map (left) + detail panel (right) ── */}
       <div className="flex gap-5 items-start print:hidden">
-        {/* ── LEFT: search + bus grid ── */}
-        <div className="flex-1 min-w-0">
+        {/* ── LEFT: own white card ── */}
+        <div className="flex-1 min-w-0 bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
           {/* Search bar */}
           <div className="relative mb-2">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
@@ -834,9 +834,9 @@ export default function AdminSeatMap({
           </div>
         </div>
 
-        {/* ── RIGHT: Detail panel ── */}
+        {/* ── RIGHT: own white card ── */}
         <div className="w-72 shrink-0 sticky top-4">
-          <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden min-h-[180px]">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-[180px]">
             {!activeSeat ? (
               <div className="flex flex-col items-center justify-center h-44 text-slate-400 gap-2 p-4 text-center">
                 <User className="h-8 w-8 opacity-25" />
@@ -845,7 +845,7 @@ export default function AdminSeatMap({
             ) : (
               <>
                 {/* Panel header */}
-                <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
+                <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-200 rounded-t-2xl">
                   <span className="text-sm font-semibold text-slate-800">
                     Seat {activeSeat}
                   </span>
