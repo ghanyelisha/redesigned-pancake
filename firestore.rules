@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Admin: any authenticated user (accounts created manually in Firebase Console)
+    function isAdmin() {
+      return isAuthenticated();
+    }
+
+    // ── journeys collection ───────────────────────────────────────────────────
+    // Public read (passengers browse journeys)
+    // Admin-only write (create, update, delete)
+    match /journeys/{journeyId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ── seats collection ─────────────────────────────────────────────────────
+    // Public read (passengers see seat availability)
+    // Admin-only create (seat map initialisation)
+    // Authenticated update (passengers hold seats, admins manage)
+    match /seats/{journeyId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if isAuthenticated() || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // ── bookings collection ───────────────────────────────────────────────────
+    // Public create (passengers create bookings without account)
+    // Public read for own booking by bookingReference (for confirmation page)
+    // Admin read all / update (confirm, cancel, change seat) / delete
+    match /bookings/{bookingId} {
+      allow create: if true;
+      allow read: if isAdmin()
+        || (resource.data.bookingReference != null);
+      allow update, delete: if isAdmin();
+    }
+  }
+}

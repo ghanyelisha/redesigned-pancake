@@ -35,7 +35,8 @@ export type Journey = {
   amenities: string[];
   boardingStation: string;
   droppingStation: string;
-  status: string;
+  carStatus?: string; // Operational | Under Maintenance | Reserved
+  status: string;     // active | cancelled
 };
 
 export type SeatStatus = 'available' | 'held' | 'booked';
@@ -64,7 +65,7 @@ export type Booking = {
   luggageTypes?: string[];
   totalAmount: number;
   paymentMethod?: string;
-  paymentStatus: 'pending' | 'confirmed' | 'failed';
+  paymentStatus: 'pending' | 'confirmed' | 'failed' | 'cancelled';
   bookingReference: string;
   createdAt?: any;
   boardingPoint?: string;
