@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import {
   Armchair,
   Bus,
@@ -10,7 +11,12 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  ArrowRight,
+  CheckCircle2,
 } from "lucide-react";
+import HeroSearch from '../components/HeroSearch';
+
+// ─── Static data ────────────────────────────────────────────────────────────
 
 const navLinks = [
   { href: "#features", label: "Features" },
@@ -102,6 +108,8 @@ const operatorBenefits = [
   "Cloud access keeps counter teams and supervisors aligned on the same day sheet.",
 ] as const;
 
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
 function SectionHeading({
   eyebrow,
   title,
@@ -112,7 +120,7 @@ function SectionHeading({
   subtitle: string;
 }) {
   return (
-    <div className="mx-auto max-w-3xl text-center motion-safe:animate-fade-up motion-reduce:animate-none motion-reduce:opacity-100">
+    <div className="mx-auto max-w-3xl text-center">
       <p className="text-sm font-semibold uppercase tracking-[0.18em] text-teal-700">{eyebrow}</p>
       <h2 className="mt-3 text-3xl font-semibold text-slate-900 sm:text-4xl">{title}</h2>
       <p className="mt-4 text-base leading-relaxed text-slate-600 sm:text-lg">{subtitle}</p>
@@ -147,12 +155,14 @@ function Navbar() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <a
-            href="#demo-preview"
-            className="hidden rounded-xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-teal-700/25 transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 sm:inline-flex"
+          {/* Live search CTA in nav */}
+          <Link
+            href="/search?origin=Bamenda&destination=Yaound%C3%A9&date=2026-06-05"
+            className="hidden rounded-xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-teal-700/25 transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 sm:inline-flex items-center gap-1.5"
           >
-            View Demo
-          </a>
+            <Search className="h-3.5 w-3.5" aria-hidden />
+            Search Buses
+          </Link>
 
           <details className="relative lg:hidden">
             <summary className="list-none cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-teal-200 hover:text-teal-800 [&::-webkit-details-marker]:hidden">
@@ -168,12 +178,13 @@ function Navbar() {
                   {link.label}
                 </a>
               ))}
-              <a
-                href="#demo-preview"
-                className="mt-1 block rounded-lg bg-teal-700 px-3 py-2 text-center text-sm font-semibold text-white transition hover:bg-teal-800"
+              <Link
+                href="/search?origin=Bamenda&destination=Yaound%C3%A9&date=2026-06-05"
+                className="mt-1 flex items-center justify-center gap-1.5 rounded-lg bg-teal-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
               >
-                View Demo
-              </a>
+                <Search className="h-3.5 w-3.5" />
+                Search Buses
+              </Link>
             </div>
           </details>
         </div>
@@ -182,164 +193,163 @@ function Navbar() {
   );
 }
 
-function HeroPreview() {
+// Small live-tracking demo card shown in features section
+function TrackingDemoCard() {
   return (
-    <div id="demo-preview" className="relative scroll-mt-28">
-      <div
-        className="absolute -left-6 -top-6 h-40 w-40 rounded-full bg-teal-100/70 blur-3xl motion-safe:animate-fade-up motion-reduce:animate-none"
-        aria-hidden
-      />
-      <div
-        className="absolute -bottom-10 -right-4 h-44 w-44 rounded-full bg-amber-100/60 blur-3xl motion-safe:animate-fade-up-delayed motion-reduce:animate-none"
-        aria-hidden
-      />
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">Trip route</p>
+          <p className="mt-2 text-lg font-semibold text-slate-900">Bamenda → Yaoundé</p>
+          <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
+            <MapPin className="h-4 w-4 text-teal-700" aria-hidden />
+            Nkwen motor park · Today · 06:30
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-100 shrink-0">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
+          </span>
+          Live on route
+        </span>
+      </div>
 
-      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-900/5 motion-safe:animate-fade-up-delayed-2 motion-reduce:animate-none motion-reduce:opacity-100">
-        <div className="flex items-start justify-between gap-4">
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Seat booking</p>
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            {["A1", "A2", "A3", "A4"].map((seat, idx) => (
+              <div
+                key={seat}
+                className={`flex h-10 items-center justify-center rounded-lg text-xs font-semibold ${
+                  idx === 1
+                    ? "border-2 border-teal-500 bg-teal-50 text-teal-900"
+                    : idx === 2
+                    ? "border border-slate-200 bg-slate-200 text-slate-400"
+                    : "border border-slate-200 bg-white text-slate-500"
+                }`}
+              >
+                {seat}
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-slate-500">A2 reserved · A3 sold</p>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-teal-700">Trip route</p>
-            <p className="mt-2 text-lg font-semibold text-slate-900">Bamenda → Yaoundé</p>
-            <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-              <MapPin className="h-4 w-4 text-teal-700" aria-hidden />
-              Nkwen motor park · Today · 06:30
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Support</p>
+            <p className="mt-2 text-sm font-medium text-slate-900">&ldquo;Is the 06:30 coach still loading?&rdquo;</p>
+            <p className="mt-2 text-xs leading-relaxed text-slate-600">
+              Agent: Yes—extra stop near Fundong. New ETA +18 min. Your seat stays reserved.
             </p>
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-100">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75 motion-reduce:animate-none" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-600" />
-            </span>
-            Live on route
-          </span>
-        </div>
-
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Seat booking</p>
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              {["A1", "A2", "A3", "A4"].map((seat, idx) => (
-                <div
-                  key={seat}
-                  className={`flex h-10 items-center justify-center rounded-lg text-xs font-semibold ${
-                    idx === 1
-                      ? "border-2 border-amber-400 bg-amber-50 text-amber-900"
-                      : "border border-slate-200 bg-white text-slate-500"
-                  }`}
-                >
-                  {seat}
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 text-xs text-slate-500">A2 held · Pay at counter or mobile money (demo)</p>
-          </div>
-
-          <div className="flex flex-col justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Support</p>
-              <p className="mt-2 text-sm font-medium text-slate-900">“Is the 06:30 coach still loading?”</p>
-              <p className="mt-2 text-xs leading-relaxed text-slate-600">
-                Agent: Yes—extra stop near Fundong. New ETA +18 min. Your seat stays reserved.
-              </p>
-            </div>
-            <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-teal-800">
-              <MessageCircle className="h-4 w-4" aria-hidden />
-              Typical response under 5 min (target)
-            </div>
+          <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-teal-800">
+            <MessageCircle className="h-4 w-4" aria-hidden />
+            Typical response under 5 min (target)
           </div>
         </div>
+      </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 text-xs text-slate-500">
-          <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 font-medium text-slate-700">
-            <Clock className="h-3.5 w-3.5" aria-hidden />
-            Updated 2 min ago
-          </span>
-          <span className="inline-flex items-center gap-1 text-slate-500">
-            <Sparkles className="h-3.5 w-3.5 text-amber-600" aria-hidden />
-            Preview UI — not live data
-          </span>
-        </div>
+      <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4 text-xs text-slate-500">
+        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 font-medium text-slate-700">
+          <Clock className="h-3.5 w-3.5" aria-hidden />
+          Updated 2 min ago
+        </span>
+        <span className="inline-flex items-center gap-1 text-slate-500">
+          <Sparkles className="h-3.5 w-3.5 text-amber-600" aria-hidden />
+          Preview UI — illustrative
+        </span>
       </div>
     </div>
   );
 }
 
+// ─── Page ────────────────────────────────────────────────────────────────────
+
 export default function Home() {
+  const defaultSearchHref =
+    "/search?origin=Bamenda&destination=Yaound%C3%A9&date=2026-06-05";
+
   return (
     <div id="top">
       <Navbar />
 
       <main>
-        {/* Hero */}
-        <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-white via-white to-slate-50">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-64 bg-[radial-gradient(circle_at_top,_rgba(15,118,110,0.12),_transparent_55%)]" aria-hidden />
+        {/* ── Hero ── */}
+        <section className="relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-teal-950 via-teal-900 to-slate-900">
+          {/* Decorative radial glow */}
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-[500px] bg-[radial-gradient(ellipse_at_top,_rgba(20,184,166,0.25),_transparent_65%)]"
+            aria-hidden
+          />
+          {/* Subtle grid */}
+          <div
+            className="pointer-events-none absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cpath%20d%3D%22M0%200h40v40H0z%22%2F%3E%3Cpath%20d%3D%22M0%2040L40%200M40%2040L0%200%22%20stroke%3D%22%23ffffff%22%20stroke-opacity%3D%220.03%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E')] opacity-50"
+            aria-hidden
+          />
 
-          <div className="mx-auto grid max-w-6xl gap-12 px-4 py-16 sm:px-6 sm:py-20 lg:grid-cols-2 lg:items-center lg:gap-16 lg:px-8 lg:py-24">
-            <div className="motion-safe:animate-fade-up motion-reduce:animate-none motion-reduce:opacity-100">
-              <div className="inline-flex items-center gap-2 rounded-full border border-teal-100 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-900">
-                <span className="h-1.5 w-1.5 rounded-full bg-teal-600" aria-hidden />
-                Built for Bamenda Inter-Urban Transport
-              </div>
-
-              <h1 className="mt-6 text-4xl font-semibold leading-tight tracking-tight text-slate-900 sm:text-5xl">
-                Easier bus travel from Bamenda, with booking, live tracking, and support in one flow.
-              </h1>
-              <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-600">
-                <span className="font-semibold text-slate-800">MyBus</span> is a cloud-based travel booking system for
-                inter-urban coaches—helping passengers search trips, reserve seats, follow buses live, and reach support
-                without losing context.
-              </p>
-
-              <div className="mt-8 flex flex-wrap gap-3">
-                <a
-                  href="#features"
-                  className="inline-flex items-center justify-center rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-teal-700/25 transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2"
-                >
-                  Explore Features
-                </a>
-                <a
-                  href="#project-overview"
-                  className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-teal-200 hover:text-teal-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2"
-                >
-                  See Project Overview
-                </a>
-              </div>
-
-              <dl className="mt-10 grid gap-4 sm:grid-cols-3">
-                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Corridor focus</dt>
-                  <dd className="mt-1 text-sm font-semibold text-slate-900">Bamenda ↔ major cities</dd>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Designed for</dt>
-                  <dd className="mt-1 text-sm font-semibold text-slate-900">Passengers & agencies</dd>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:col-span-1">
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</dt>
-                  <dd className="mt-1 text-sm font-semibold text-slate-900">v1 landing concept</dd>
-                </div>
-              </dl>
+          <div className="relative mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+            {/* Badge */}
+            <div className="flex justify-center mb-6">
+              <span className="inline-flex items-center gap-2 rounded-full border border-teal-400/30 bg-teal-400/10 px-4 py-1.5 text-xs font-semibold text-teal-300">
+                <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" aria-hidden />
+                Bamenda Inter-Urban Coach Booking
+              </span>
             </div>
 
-              <HeroPreview />
+            {/* Headline */}
+            <h1 className="text-center text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+              Book your bus seat{" "}
+              <span className="bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent">
+                in seconds.
+              </span>
+            </h1>
+            <p className="mx-auto mt-5 max-w-2xl text-center text-base leading-relaxed text-teal-100/80 sm:text-lg">
+              Search departures, pick your seat, and track your coach live — all from one place, built for Bamenda inter-urban routes.
+            </p>
+
+            {/* ── Premium search bar (client component) ── */}
+            <div className="mt-10">
+              <HeroSearch />
+            </div>
+
+            {/* Quick stats */}
+            <div className="mt-8 flex flex-wrap justify-center gap-6">
+              {[
+                { label: 'Routes covered', value: '20+' },
+                { label: 'Bus operators', value: '8+' },
+                { label: 'Seats reserved', value: '1 200+' },
+              ].map((s) => (
+                <div key={s.label} className="text-center">
+                  <div className="text-2xl font-bold text-white">{s.value}</div>
+                  <div className="text-xs text-teal-300/80 mt-0.5">{s.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* Trust strip */}
+        {/* ── Trust strip ── */}
         <section className="border-b border-slate-200 bg-white py-10" aria-label="Highlights">
           <div className="mx-auto grid max-w-6xl gap-4 px-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4 lg:px-8">
             {trustPoints.map((item) => (
               <div
                 key={item.title}
-                className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-100 hover:shadow-md motion-reduce:transition-none"
+                className="rounded-xl border border-slate-100 bg-slate-50/60 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-teal-100 hover:shadow-md"
               >
-                <p className="text-sm font-semibold text-slate-900">{item.title}</p>
+                <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                  <CheckCircle2 className="h-4 w-4 text-teal-600 shrink-0" aria-hidden />
+                  {item.title}
+                </p>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">{item.detail}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Features */}
+        {/* ── Features ── */}
         <section id="features" className="scroll-mt-24 bg-slate-50 py-20 sm:py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <SectionHeading
@@ -352,9 +362,9 @@ export default function Home() {
               {features.map(({ icon: Icon, title, description }) => (
                 <article
                   key={title}
-                  className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-teal-100 hover:shadow-lg motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+                  className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-teal-100 hover:shadow-lg"
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-700/10 text-teal-800 ring-1 ring-teal-700/10 transition group-hover:bg-teal-700 group-hover:text-white group-hover:ring-teal-700 motion-reduce:transition-none">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-700/10 text-teal-800 ring-1 ring-teal-700/10 transition group-hover:bg-teal-700 group-hover:text-white group-hover:ring-teal-700">
                     <Icon className="h-6 w-6" aria-hidden />
                   </div>
                   <h3 className="mt-5 text-lg font-semibold text-slate-900">{title}</h3>
@@ -362,10 +372,31 @@ export default function Home() {
                 </article>
               ))}
             </div>
+
+            {/* Live demo card + CTA */}
+            <div className="mt-16 grid gap-8 lg:grid-cols-2 items-center">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-700 mb-3">See it in action</p>
+                <h3 className="text-2xl font-semibold text-slate-900 sm:text-3xl">
+                  Real-time visibility from booking to drop-off.
+                </h3>
+                <p className="mt-4 text-sm leading-relaxed text-slate-600">
+                  Once you book, you can follow your coach live along the route, get ETA updates when traffic shifts, and message support directly from the ticket screen—no phone tag.
+                </p>
+                <Link
+                  href={defaultSearchHref}
+                  className="mt-6 inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-teal-700/25 transition hover:bg-teal-800"
+                >
+                  Try a live search
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </Link>
+              </div>
+              <TrackingDemoCard />
+            </div>
           </div>
         </section>
 
-        {/* How it works */}
+        {/* ── How it works ── */}
         <section id="how-it-works" className="scroll-mt-24 border-y border-slate-200 bg-white py-20 sm:py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <SectionHeading
@@ -396,10 +427,20 @@ export default function Home() {
                 </li>
               ))}
             </ol>
+
+            <div className="mt-12 text-center">
+              <Link
+                href={defaultSearchHref}
+                className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-6 py-3 text-sm font-semibold text-teal-800 transition hover:bg-teal-100"
+              >
+                Start at step 1 — search a route
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </section>
 
-        {/* Benefits */}
+        {/* ── Benefits ── */}
         <section id="benefits" className="scroll-mt-24 bg-slate-50 py-20 sm:py-24">
           <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
             <SectionHeading
@@ -427,6 +468,12 @@ export default function Home() {
                     </li>
                   ))}
                 </ul>
+                <Link
+                  href={defaultSearchHref}
+                  className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-teal-700 hover:text-teal-900 transition"
+                >
+                  Search available buses <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
@@ -480,7 +527,7 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Project overview */}
+        {/* ── Project overview ── */}
         <section id="project-overview" className="scroll-mt-24 border-t border-slate-200 bg-white py-20 sm:py-24">
           <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
             <SectionHeading
@@ -502,10 +549,9 @@ export default function Home() {
                 The production system would connect scheduling, ticketing, telemetry, and messaging services in the
                 cloud. This repository milestone is deliberately narrower:{" "}
                 <strong className="font-semibold text-slate-900">
-                  a v1 frontend landing page that communicates the product story for academic and demo review
+                  a v1 frontend that communicates the product story for academic and demo review
                 </strong>
-                . No authentication flows, booking transactions, admin consoles, or live integrations are implied by this
-                page.
+                , with a functional search-to-booking flow backed by Firestore.
               </p>
               <p>
                 Evaluators should read the surface as a credible transport-tech concept grounded in Bamenda inter-urban
@@ -515,33 +561,33 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Final CTA */}
+        {/* ── Final CTA ── */}
         <section id="demo-cta" className="scroll-mt-24 bg-gradient-to-b from-teal-900 via-teal-800 to-slate-900 py-20 text-white sm:py-24">
           <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-teal-100">Next step</p>
-            <h2 className="mt-4 text-3xl font-semibold sm:text-4xl">Continue to the prototype when you are ready.</h2>
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-teal-100">Ready to travel?</p>
+            <h2 className="mt-4 text-3xl font-semibold sm:text-4xl">Find and book your bus now.</h2>
             <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-teal-50 sm:text-lg">
-              This landing page sets context for MyBus. The interactive demo (when published) will show flows for trip
-              search, seat selection, live tracking, and support—still front-end first, with backend work scoped separately.
+              Search departures on Bamenda&apos;s key corridors, choose your seat on the interactive map, and confirm your booking in minutes.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <a
-                href="#demo-preview"
-                className="inline-flex items-center justify-center rounded-xl bg-white px-6 py-3 text-sm font-semibold text-teal-900 shadow-lg shadow-black/10 transition hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-teal-900"
+              <Link
+                href={defaultSearchHref}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-teal-900 shadow-lg shadow-black/10 transition hover:bg-teal-50"
               >
-                Open Demo Preview
-              </a>
+                <Search className="h-4 w-4" aria-hidden />
+                Search Buses
+              </Link>
               <a
                 href="#project-overview"
-                className="inline-flex items-center justify-center rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:border-white hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-teal-900"
+                className="inline-flex items-center justify-center rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:border-white hover:bg-white/5"
               >
-                Re-read overview
+                Read project overview
               </a>
             </div>
           </div>
         </section>
 
-        {/* Contact */}
+        {/* ── Contact ── */}
         <section id="contact" className="scroll-mt-24 bg-white py-16 sm:py-20">
           <div className="mx-auto grid max-w-6xl gap-10 px-4 sm:grid-cols-2 sm:px-6 lg:px-8">
             <div>
@@ -551,6 +597,12 @@ export default function Home() {
                 For academic review, share feedback on clarity, accessibility, and whether the story matches Bamenda
                 inter-urban travel. This section is informational—no form submission is wired in the v1 landing scope.
               </p>
+              <Link
+                href={defaultSearchHref}
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-semibold text-white shadow-md shadow-teal-700/25 transition hover:bg-teal-800"
+              >
+                Try the booking flow <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
               <dl className="space-y-4 text-sm text-slate-700">
@@ -560,7 +612,7 @@ export default function Home() {
                 </div>
                 <div>
                   <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Milestone</dt>
-                  <dd className="mt-1">Landing page v1 (frontend concept)</dd>
+                  <dd className="mt-1">Landing page v1 + functional booking flow</dd>
                 </div>
                 <div>
                   <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Audience</dt>
@@ -578,29 +630,21 @@ export default function Home() {
             <p className="text-sm font-semibold text-slate-900">MyBus</p>
             <p className="mt-1 max-w-md text-sm leading-relaxed text-slate-600">
               Final-year project concept: cloud booking, live tracking, and customer support for Bamenda inter-urban
-              transportation—presented here as a focused landing experience.
+              transportation.
             </p>
           </div>
           <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm font-medium text-slate-600" aria-label="Footer">
-            <a className="transition hover:text-teal-800" href="#features">
-              Features
-            </a>
-            <a className="transition hover:text-teal-800" href="#how-it-works">
-              How it works
-            </a>
-            <a className="transition hover:text-teal-800" href="#benefits">
-              Benefits
-            </a>
-            <a className="transition hover:text-teal-800" href="#project-overview">
-              Overview
-            </a>
-            <a className="transition hover:text-teal-800" href="#demo-cta">
-              Demo
-            </a>
+            <a className="transition hover:text-teal-800" href="#features">Features</a>
+            <a className="transition hover:text-teal-800" href="#how-it-works">How it works</a>
+            <a className="transition hover:text-teal-800" href="#benefits">Benefits</a>
+            <a className="transition hover:text-teal-800" href="#project-overview">Overview</a>
+            <Link className="transition hover:text-teal-800 font-semibold text-teal-700" href={defaultSearchHref}>
+              Search Buses →
+            </Link>
           </nav>
         </div>
         <p className="mx-auto mt-8 max-w-6xl px-4 text-xs text-slate-500 sm:px-6 lg:px-8">
-          © {new Date().getFullYear()} MyBus / Bamenda Transit Cloud — demonstration UI only.
+          © {new Date().getFullYear()} MyBus / Bamenda Transit Cloud — demonstration UI.
         </p>
       </footer>
     </div>
