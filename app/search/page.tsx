@@ -1,22 +1,25 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import DateStrip from '../../components/DateStrip';
 import JourneyCard from '../../components/JourneyCard';
 import { fetchJourneys } from '../../lib/firestore';
 
-export default function SearchPage() {
+function SearchResults() {
   const params = useSearchParams();
   const origin = params.get('origin') || 'Yaoundé';
   const destination = params.get('destination') || 'Douala';
-  const date = params.get('date') || new Date().toISOString().slice(0,10);
+  const date = params.get('date') || new Date().toISOString().slice(0, 10);
 
   const [journeys, setJourneys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    fetchJourneys(origin, destination, date).then((list) => { setJourneys(list); setLoading(false); });
+    fetchJourneys(origin, destination, date).then((list) => {
+      setJourneys(list);
+      setLoading(false);
+    });
   }, [origin, destination, date]);
 
   return (
@@ -34,5 +37,13 @@ export default function SearchPage() {
 
       {loading ? <div>Loading...</div> : journeys.map(j => <JourneyCard key={j.id} journey={j} />)}
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="max-w-6xl mx-auto p-4">Loading...</div>}>
+      <SearchResults />
+    </Suspense>
   );
 }
