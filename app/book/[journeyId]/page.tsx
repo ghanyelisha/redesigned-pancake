@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import SeatMap from '../../../../components/SeatMap';
-import PassengerForm from '../../../../components/PassengerForm';
-import LuggageOptions from '../../../../components/LuggageOptions';
-import { getJourneyById, createBooking } from '../../../../lib/firestore';
+import SeatMap from '../../../components/SeatMap';
+import PassengerForm from '../../../components/PassengerForm';
+import LuggageOptions from '../../../components/LuggageOptions';
+import { getJourneyById, createBooking } from '../../../lib/firestore';
 
 function genRef() {
   return Math.random().toString(36).substring(2,10).toUpperCase();

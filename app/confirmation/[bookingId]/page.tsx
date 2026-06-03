@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getBookingById } from '../../../../lib/firestore';
-import Ticket from '../../../../components/Ticket';
+import { getBookingById } from '../../../lib/firestore';
+import Ticket from '../../../components/Ticket';
 
 export default function ConfirmationPage({ params }: any) {
   const bookingId = params.bookingId;
