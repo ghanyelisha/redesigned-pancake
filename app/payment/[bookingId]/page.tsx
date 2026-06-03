@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { getBookingById, listenBooking } from '../../../../lib/firestore';
-import { db } from '../../../../lib/firebase';
+import { getBookingById, listenBooking } from '../../../lib/firestore';
+import { db } from '../../../lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import PaymentMethods from '../../../../components/PaymentMethods';
+import PaymentMethods from '../../../components/PaymentMethods';
 
 export default function PaymentPage({ params }: any) {
   const bookingId = params.bookingId;
