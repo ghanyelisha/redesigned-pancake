@@ -6,6 +6,9 @@ import { createJourney, updateJourney } from '../../lib/adminFirestore';
 
 const CITIES = ['Yaoundé', 'Douala', 'Buea', 'Limbé', 'Kumba', 'Bamenda', 'Bafoussam', 'Ngaoundéré'];
 const BUS_TYPES: { label: string; seats: number }[] = [
+  { label: '85-seater', seats: 85 },
+  { label: '80-seater', seats: 80 },
+  { label: '75-seater', seats: 75 },
   { label: '70-seater', seats: 70 },
   { label: '50-seater', seats: 50 },
   { label: '30-seater', seats: 30 },

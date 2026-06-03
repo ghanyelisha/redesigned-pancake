@@ -83,7 +83,23 @@ export async function fetchJourneys(origin: string, destination: string, date: s
   const snap = await getDocs(q);
   const items: Journey[] = [];
   snap.forEach((d) => items.push({ id: d.id, ...(d.data() as Journey) }));
-  return items;
+
+  // Enrich with live seat availability (parallel fetches)
+  const enriched = await Promise.all(
+    items.map(async (j) => {
+      if (!j.id) return { ...j, availableSeats: j.totalSeats };
+      try {
+        const seatSnap = await getDoc(doc(db, 'seats', j.id));
+        if (!seatSnap.exists()) return { ...j, availableSeats: j.totalSeats };
+        const seats = (seatSnap.data() as SeatMap).seats ?? {};
+        const available = Object.values(seats).filter((s) => s.status === 'available').length;
+        return { ...j, availableSeats: available };
+      } catch {
+        return { ...j, availableSeats: 0 };
+      }
+    })
+  );
+  return enriched;
 }
 
 export async function getJourneyById(journeyId: string) {

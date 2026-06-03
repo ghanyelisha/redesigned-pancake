@@ -5,7 +5,7 @@ import { ArrowLeftRight, MapPin, Calendar, Search, SlidersHorizontal, X, Bus } f
 import JourneyCard from '../../components/JourneyCard';
 import DateStrip from '../../components/DateStrip';
 import BookingStepper from '../../components/BookingStepper';
-import { fetchJourneys } from '../../lib/firestore';
+import { fetchJourneys, listenSeatMap } from '../../lib/firestore';
 
 const CITIES = ['Yaoundé', 'Douala', 'Bamenda', 'Buea', 'Limbé', 'Kumba', 'Bafoussam', 'Ngaoundéré'];
 
@@ -265,6 +265,8 @@ function SearchResults() {
   const [journeys, setJourneys] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // Live seat counts keyed by journey id
+  const [liveCounts, setLiveCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     setLoading(true);
@@ -274,6 +276,23 @@ function SearchResults() {
       setLoading(false);
     });
   }, [origin, destination, date]);
+
+  // Subscribe to live seat availability for all loaded journeys
+  useEffect(() => {
+    if (journeys.length === 0) return;
+    const unsubs = journeys
+      .filter((j) => j.id)
+      .map((j) =>
+        listenSeatMap(j.id, (seatMap) => {
+          if (!seatMap) return;
+          const available = Object.values(seatMap.seats ?? {}).filter(
+            (s: any) => s.status === 'available'
+          ).length;
+          setLiveCounts((prev) => ({ ...prev, [j.id]: available }));
+        })
+      );
+    return () => unsubs.forEach((u) => u());
+  }, [journeys]);
 
   return (
     <>
@@ -308,7 +327,16 @@ function SearchResults() {
                     No buses found for this route and date. Try adjusting your filters.
                   </div>
                 ) : (
-                  filtered.map((j) => <JourneyCard key={j.id} journey={j} />)
+                  filtered.map((j) => (
+                    <JourneyCard
+                      key={j.id}
+                      journey={
+                        j.id && liveCounts[j.id] !== undefined
+                          ? { ...j, availableSeats: liveCounts[j.id] }
+                          : j
+                      }
+                    />
+                  ))
                 )}
               </>
             )}

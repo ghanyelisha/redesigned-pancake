@@ -1,73 +1,168 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { listenSeatMap, fetchSeatMap, holdSeatTransaction } from '../lib/firestore';
+import type { SeatMap as SeatMapType } from '../lib/firestore';
 
-// Sofa/armchair SVG icon for each seat
-function SeatIcon({ status, onClick, number }: { status: string; onClick: () => void; number: string }) {
-  const isAvailable = status === 'available';
+// ─── SVG Icons ───────────────────────────────────────────────────────────────
+
+function SteeringWheel() {
+  return (
+    <svg width="40" height="40" viewBox="0 0 44 44" fill="none" aria-label="Driver">
+      {/* Outer ring */}
+      <circle cx="22" cy="22" r="19" stroke="#1e293b" strokeWidth="4" fill="none" />
+      {/* Centre hub */}
+      <circle cx="22" cy="22" r="5" fill="#1e293b" />
+      {/* Top spoke */}
+      <line x1="22" y1="17" x2="22" y2="6" stroke="#1e293b" strokeWidth="3.5" strokeLinecap="round" />
+      {/* Bottom-left spoke */}
+      <line x1="22" y1="27" x2="14" y2="36" stroke="#1e293b" strokeWidth="3.5" strokeLinecap="round" />
+      {/* Bottom-right spoke */}
+      <line x1="22" y1="27" x2="30" y2="36" stroke="#1e293b" strokeWidth="3.5" strokeLinecap="round" />
+      {/* Left hand */}
+      <path d="M4 18 Q2 22 5 25 Q7 27 10 24 Q13 21 11 17 Q9 13 6 15 Z" fill="#475569" />
+      {/* Right hand */}
+      <path d="M40 18 Q42 22 39 25 Q37 27 34 24 Q31 21 33 17 Q35 13 38 15 Z" fill="#475569" />
+    </svg>
+  );
+}
+
+function DoorIcon() {
+  return (
+    <svg width="52" height="44" viewBox="0 0 52 44" fill="none" aria-label="Door">
+      {/* Frame */}
+      <rect x="1" y="1" width="50" height="42" rx="3" stroke="#94a3b8" strokeWidth="2" fill="#f1f5f9" />
+      {/* Left panel */}
+      <rect x="4" y="4" width="20" height="36" rx="2" fill="#e2e8f0" stroke="#cbd5e1" strokeWidth="1" />
+      {/* Right panel */}
+      <rect x="28" y="4" width="20" height="36" rx="2" fill="#e2e8f0" stroke="#cbd5e1" strokeWidth="1" />
+      {/* Left handle */}
+      <circle cx="22" cy="22" r="2.5" fill="#94a3b8" />
+      {/* Right handle */}
+      <circle cx="30" cy="22" r="2.5" fill="#94a3b8" />
+    </svg>
+  );
+}
+
+// ─── Seat shape ───────────────────────────────────────────────────────────────
+
+type SeatStatus = 'available' | 'booked' | 'held' | 'selected';
+
+function Seat({
+  num,
+  status,
+  onClick,
+}: {
+  num: string;
+  status: SeatStatus;
+  onClick?: () => void;
+}) {
   const isBooked = status === 'booked';
-  const isSelected = status === 'held' || status === 'selected';
+  const isHeld = status === 'held';
+  const isSel = status === 'selected';
 
-  const colorClass = isBooked
-    ? 'text-slate-400 cursor-not-allowed'
-    : isSelected
-    ? 'text-teal-700 cursor-pointer'
-    : 'text-teal-700 cursor-pointer hover:text-teal-900';
-
-  const bgClass = isBooked
-    ? 'bg-slate-100'
-    : isSelected
-    ? 'bg-teal-100 ring-2 ring-teal-500'
-    : 'bg-white hover:bg-teal-50';
+  const fill = isSel ? '#0f766e' : isBooked ? '#374151' : isHeld ? '#d97706' : '#dc2626';
+  const opacity = isBooked ? 0.45 : 1;
 
   return (
     <button
       onClick={isBooked ? undefined : onClick}
       disabled={isBooked}
-      title={`Seat ${number} — ${status}`}
-      className={`flex flex-col items-center gap-0.5 p-2 rounded-lg border transition-all ${bgClass} ${
-        isBooked ? 'border-slate-200' : isSelected ? 'border-teal-500' : 'border-slate-200 hover:border-teal-400'
-      }`}
+      title={`Seat ${num} — ${status}`}
+      className={`flex flex-col items-center gap-0.5 rounded transition-all active:scale-95 ${
+        isBooked ? 'cursor-not-allowed' : 'cursor-pointer'
+      } ${isSel ? 'ring-2 ring-teal-400 ring-offset-1 rounded' : ''}`}
+      style={{ opacity }}
     >
-      {/* Armchair SVG */}
-      <svg
-        width="28"
-        height="24"
-        viewBox="0 0 28 24"
-        fill="none"
-        className={`${colorClass} transition-colors`}
-        aria-hidden
-      >
-        {/* backrest */}
-        <rect x="4" y="1" width="20" height="11" rx="3" fill="currentColor" opacity={isBooked ? 0.35 : 0.9} />
-        {/* seat */}
-        <rect x="2" y="12" width="24" height="7" rx="2" fill="currentColor" opacity={isBooked ? 0.25 : 0.75} />
-        {/* left armrest */}
-        <rect x="1" y="10" width="4" height="10" rx="2" fill="currentColor" opacity={isBooked ? 0.2 : 0.6} />
-        {/* right armrest */}
-        <rect x="23" y="10" width="4" height="10" rx="2" fill="currentColor" opacity={isBooked ? 0.2 : 0.6} />
-        {/* legs */}
-        <rect x="5" y="19" width="3" height="4" rx="1" fill="currentColor" opacity={isBooked ? 0.2 : 0.5} />
-        <rect x="20" y="19" width="3" height="4" rx="1" fill="currentColor" opacity={isBooked ? 0.2 : 0.5} />
+      <svg width="34" height="30" viewBox="0 0 34 30" fill="none">
+        {/* Backrest */}
+        <rect x="3" y="0" width="28" height="14" rx="5" fill={fill} />
+        {/* Seat cushion */}
+        <rect x="1" y="13" width="32" height="9" rx="3" fill={fill} opacity="0.82" />
+        {/* Left armrest */}
+        <rect x="0" y="11" width="4" height="13" rx="2" fill={fill} opacity="0.65" />
+        {/* Right armrest */}
+        <rect x="30" y="11" width="4" height="13" rx="2" fill={fill} opacity="0.65" />
+        {/* Left leg */}
+        <rect x="5" y="22" width="4" height="7" rx="1.5" fill={fill} opacity="0.5" />
+        {/* Right leg */}
+        <rect x="25" y="22" width="4" height="7" rx="1.5" fill={fill} opacity="0.5" />
       </svg>
-      <span className={`text-[10px] font-semibold leading-none ${isBooked ? 'text-slate-400' : isSelected ? 'text-teal-700' : 'text-slate-600'}`}>
-        {number}
+      <span
+        className="text-[10px] font-bold leading-none"
+        style={{ color: isSel ? '#0f766e' : isBooked ? '#6b7280' : isHeld ? '#92400e' : '#dc2626' }}
+      >
+        {num}
       </span>
     </button>
   );
 }
 
+// ─── Bus layout builder ───────────────────────────────────────────────────────
+//
+// All supported sizes: 30, 50, 70, 75, 80, 85  (n = k*5 + 20, k ≥ 0)
+//
+// Row 0  : [Steering wheel (left)]  | aisle | [s][s]      (2 seats right of driver)
+// [FRONT DOOR — right side only]
+// Row 1  : [s][s]  [empty]          | aisle | [s][s]      (2L + 2R)
+// Rows 2…k+1 : [s][s][s]           | aisle | [s][s]      (3L + 2R each)
+// Exit-door  : [s][s][s]           | aisle | [DOOR]      (3L, door right)
+// Row k+3    : [s][s][s]           | aisle | [s][s]      (3L + 2R)
+// Last       : [s][s][s][s][s][s]                        (6 full-width)
+
+type LayoutRow =
+  | { kind: 'driver'; right: string[] }
+  | { kind: 'front'; left: string[]; right: string[] }
+  | { kind: 'normal'; left: string[]; right: string[] }
+  | { kind: 'exit-door'; left: string[] }
+  | { kind: 'last'; seats: string[] };
+
+function buildLayout(seatNums: string[]): LayoutRow[] {
+  const rows: LayoutRow[] = [];
+  let i = 0;
+  const n = seatNums.length;
+
+  const take = (count: number) => {
+    const s = seatNums.slice(i, i + count);
+    i += count;
+    return s;
+  };
+
+  if (n < 20) {
+    rows.push({ kind: 'driver', right: take(Math.min(2, n)) });
+    while (i < n - 6 && n - i > 6) {
+      rows.push({ kind: 'normal', left: take(3), right: take(Math.min(2, n - i - 6)) });
+    }
+    if (i < n) rows.push({ kind: 'last', seats: take(n - i) });
+    return rows;
+  }
+
+  const k = Math.round((n - 20) / 5);
+
+  rows.push({ kind: 'driver', right: take(2) });          // 2 seats
+  rows.push({ kind: 'front', left: take(2), right: take(2) }); // 4 seats
+  for (let r = 0; r < k; r++)
+    rows.push({ kind: 'normal', left: take(3), right: take(2) }); // 5k seats
+  rows.push({ kind: 'exit-door', left: take(3) });        // 3 seats
+  rows.push({ kind: 'normal', left: take(3), right: take(2) }); // 5 seats
+  rows.push({ kind: 'last', seats: take(6) });            // 6 seats
+  // Total: 2 + 4 + 5k + 3 + 5 + 6 = 20 + 5k ✓
+
+  return rows;
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function SeatMap({
   journeyId,
   onSelect,
-  selectedSeat,
+  selectedSeats = [],
 }: {
   journeyId: string;
-  onSelect: (seat: string | null) => void;
-  selectedSeat?: string | null;
+  onSelect: (seats: string[]) => void;
+  selectedSeats?: string[];
 }) {
-  const [seatMap, setSeatMap] = useState<any>(null);
-  const [localSelected, setLocalSelected] = useState<string | null>(selectedSeat || null);
+  const [seatMap, setSeatMap] = useState<SeatMapType | null>(null);
+  const [localSelected, setLocalSelected] = useState<string[]>(selectedSeats);
 
   useEffect(() => {
     fetchSeatMap(journeyId).then((m) => setSeatMap(m));
@@ -84,91 +179,197 @@ export default function SeatMap({
     );
   }
 
-  const seats: { num: string; status: string }[] = Object.keys(seatMap.seats || {}).map((s) => ({
-    num: s,
-    ...seatMap.seats[s],
-  }));
+  const rawSeats = seatMap.seats ?? {};
+  const seatNums = Object.keys(rawSeats).sort((a, b) => Number(a) - Number(b));
 
-  async function handleClick(seat: { num: string; status: string }) {
-    if (seat.status !== 'available' && seat.num !== localSelected) return;
+  async function handleClick(num: string) {
+    const seat = rawSeats[num];
+    if (!seat) return;
 
-    // Toggle off if clicking the same seat
-    if (seat.num === localSelected) {
-      setLocalSelected(null);
-      onSelect(null);
+    if (localSelected.includes(num)) {
+      const next = localSelected.filter((s) => s !== num);
+      setLocalSelected(next);
+      onSelect(next);
       return;
     }
 
+    if (seat.status !== 'available') return;
+
     try {
-      await holdSeatTransaction(journeyId, seat.num);
-      setLocalSelected(seat.num);
-      onSelect(seat.num);
+      await holdSeatTransaction(journeyId, num);
+      const next = [...localSelected, num];
+      setLocalSelected(next);
+      onSelect(next);
     } catch (err) {
-      alert((err as any).message || 'Could not hold seat');
+      alert((err as any).message || 'Could not hold seat. Please try another.');
     }
   }
 
-  // Split into rows of 4 with aisle gap (2+2 layout)
-  const rows: typeof seats[] = [];
-  for (let i = 0; i < seats.length; i += 4) rows.push(seats.slice(i, i + 4));
+  function seatStatus(num: string): SeatStatus {
+    if (localSelected.includes(num)) return 'selected';
+    const s = rawSeats[num]?.status;
+    if (s === 'booked') return 'booked';
+    if (s === 'held') return 'held';
+    return 'available';
+  }
 
-  const available = seats.filter((s) => s.status === 'available').length;
-  const sold = seats.filter((s) => s.status === 'booked').length;
+  const available = seatNums.filter((n) => rawSeats[n]?.status === 'available').length;
+  const booked = seatNums.filter((n) => ['booked', 'held'].includes(rawSeats[n]?.status)).length;
+
+  const layout = buildLayout(seatNums);
+
+  const renderSeat = (num: string) => (
+    <Seat key={num} num={num} status={seatStatus(num)} onClick={() => handleClick(num)} />
+  );
+
+  // Fixed cell width so every seat column aligns
+  const CELL = 'flex items-center justify-center w-10';
+  const AISLE = 'w-6 shrink-0'; // aisle gap between left and right sides
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4">
+    <div className="bg-white rounded-xl border border-slate-200 p-4 select-none overflow-x-auto">
       {/* Legend */}
-      <div className="flex items-center gap-4 mb-4 text-xs text-slate-600">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3.5 h-3.5 rounded-sm bg-white border-2 border-teal-700" />
+      <div className="flex flex-wrap items-center gap-4 mb-5 text-xs font-medium text-slate-600">
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded-sm bg-red-600" />
           Available ({available})
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3.5 h-3.5 rounded-sm bg-slate-200 border border-slate-300" />
-          Sold ({sold})
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3.5 h-3.5 rounded-sm bg-teal-100 border-2 border-teal-500" />
-          Selected
-        </div>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded-sm bg-gray-500 opacity-50" />
+          Sold ({booked})
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-3.5 h-3.5 rounded-sm bg-teal-700 ring-2 ring-teal-400" />
+          Selected ({localSelected.length})
+        </span>
       </div>
 
-      {/* Bus front */}
-      <div className="flex items-center gap-2 mb-4 px-1">
-        <div className="w-9 h-9 rounded-full bg-teal-700/10 border border-teal-100 flex items-center justify-center text-lg">
-          🚌
-        </div>
-        <div className="text-xs text-slate-500 font-medium">Driver</div>
-        <div className="flex-1 h-px bg-slate-200" />
+      {/* Bus body */}
+      <div className="inline-flex flex-col gap-2 mx-auto">
+        {layout.map((row, ri) => {
+
+          // ── Row 0: driver + 2 seats on right ──────────────────────────────
+          if (row.kind === 'driver') {
+            return (
+              <div key={ri} className="flex items-center gap-1">
+                {/* Steering wheel — driver seat (alone on front-left) */}
+                <div className={`${CELL} shrink-0`}>
+                  <SteeringWheel />
+                </div>
+                {/* Two empty cells to fill left column width (matches 3-seat rows below) */}
+                <div className={CELL} />
+                <div className={CELL} />
+                {/* Aisle */}
+                <div className={AISLE} />
+                {/* 2 seats right of driver */}
+                {row.right.map((n) => (
+                  <div key={n} className={CELL}>{renderSeat(n)}</div>
+                ))}
+              </div>
+            );
+          }
+
+          // ── Front-door row + row 1 (2L + 2R) ─────────────────────────────
+          if (row.kind === 'front') {
+            return (
+              <div key={ri}>
+                {/* Front door — right side only, aligned with right seat column */}
+                <div className="flex items-center gap-1 mb-1">
+                  <div className={CELL} />
+                  <div className={CELL} />
+                  <div className={CELL} />
+                  <div className={AISLE} />
+                  {/* Door spans the width of the 2 right seats */}
+                  <div className="flex items-center justify-center" style={{ width: 84 }}>
+                    <DoorIcon />
+                  </div>
+                </div>
+                {/* First passenger row: 2 left + empty + 2 right */}
+                <div className="flex items-center gap-1">
+                  {row.left.map((n) => (
+                    <div key={n} className={CELL}>{renderSeat(n)}</div>
+                  ))}
+                  {/* empty filler so left column always spans 3 cells */}
+                  <div className={CELL} />
+                  <div className={AISLE} />
+                  {row.right.map((n) => (
+                    <div key={n} className={CELL}>{renderSeat(n)}</div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          // ── Normal row: 3L + 2R ───────────────────────────────────────────
+          if (row.kind === 'normal') {
+            return (
+              <div key={ri} className="flex items-center gap-1">
+                {row.left.map((n) => (
+                  <div key={n} className={CELL}>{renderSeat(n)}</div>
+                ))}
+                <div className={AISLE} />
+                {row.right.map((n) => (
+                  <div key={n} className={CELL}>{renderSeat(n)}</div>
+                ))}
+              </div>
+            );
+          }
+
+          // ── Exit-door row: 3L + door on right ────────────────────────────
+          if (row.kind === 'exit-door') {
+            return (
+              <div key={ri} className="flex items-center gap-1">
+                {row.left.map((n) => (
+                  <div key={n} className={CELL}>{renderSeat(n)}</div>
+                ))}
+                <div className={AISLE} />
+                {/* Door replaces the 2 right seats */}
+                <div className="flex items-center justify-center" style={{ width: 84 }}>
+                  <DoorIcon />
+                </div>
+              </div>
+            );
+          }
+
+          // ── Last row: 6 seats full-width ──────────────────────────────────
+          if (row.kind === 'last') {
+            return (
+              <div key={ri} className="flex items-center gap-1 mt-1">
+                {row.seats.map((n) => (
+                  <div key={n} className={CELL}>{renderSeat(n)}</div>
+                ))}
+              </div>
+            );
+          }
+
+          return null;
+        })}
       </div>
 
-      {/* Seat grid — 2 + aisle + 2 layout */}
-      <div className="flex flex-col gap-2 overflow-x-auto">
-        {rows.map((row, ri) => (
-          <div key={ri} className="flex items-center gap-1 justify-center">
-            {/* Left 2 seats */}
-            {row.slice(0, 2).map((s) => (
-              <SeatIcon
-                key={s.num}
-                number={s.num}
-                status={s.num === localSelected ? 'selected' : s.status}
-                onClick={() => handleClick(s)}
-              />
+      {/* Selected seat chips */}
+      {localSelected.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap gap-1.5">
+          <span className="text-xs text-slate-500 font-medium mr-1 self-center">Selected:</span>
+          {localSelected
+            .slice()
+            .sort((a, b) => Number(a) - Number(b))
+            .map((s) => (
+              <span
+                key={s}
+                className="inline-flex items-center gap-1 px-2.5 py-1 bg-teal-700 text-white text-xs font-semibold rounded-full"
+              >
+                Seat {s}
+                <button
+                  onClick={() => handleClick(s)}
+                  className="ml-0.5 hover:opacity-70 transition-opacity"
+                  title="Remove"
+                >
+                  ×
+                </button>
+              </span>
             ))}
-            {/* Aisle */}
-            <div className="w-6" />
-            {/* Right 2 seats */}
-            {row.slice(2, 4).map((s) => (
-              <SeatIcon
-                key={s.num}
-                number={s.num}
-                status={s.num === localSelected ? 'selected' : s.status}
-                onClick={() => handleClick(s)}
-              />
-            ))}
-          </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
-export default function PassengerForm({ onSubmit, initial }: any) {
+export default function PassengerForm({ onSubmit, initial, submitting }: any) {
   const [mobile, setMobile] = useState(initial?.mobile || '');
   const [email, setEmail] = useState(initial?.email || '');
   const [name, setName] = useState(initial?.name || '');
@@ -101,9 +101,15 @@ export default function PassengerForm({ onSubmit, initial }: any) {
 
       <button
         type="submit"
-        className="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-3 rounded-xl text-sm transition-colors"
+        disabled={submitting}
+        className="w-full bg-teal-700 hover:bg-teal-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl text-sm transition-colors"
       >
-        Continue to Payment
+        {submitting ? (
+          <span className="flex items-center justify-center gap-2">
+            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            Processing…
+          </span>
+        ) : 'Continue to Payment'}
       </button>
     </form>
   );
