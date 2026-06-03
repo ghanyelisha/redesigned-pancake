@@ -42,6 +42,12 @@ npm install
 
 Use `yarn` or `pnpm install` if you prefer.
 
+Install runtime dependencies used by the prototype:
+
+```bash
+npm install firebase firebase-admin date-fns lucide-react
+```
+
 ### Run the dev server
 
 ```bash
@@ -153,3 +159,11 @@ The landing route is **static-friendly** and can be hosted on **Vercel**, **Netl
 ## License
 
 **MIT** (suggested). Update this section if your institution requires a different license or attribution.
+
+---
+
+## Firebase seeding and notes
+
+- A seed script is included at `scripts/seedFirestore.ts` to create sample journeys and seat maps. It requires a Firebase service account key. Set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable and run the script with `ts-node` or compile to JS and run with Node.
+- Create `.env.local` from `.env.local.template` and fill in your Firebase project values before running the app.
+- Passenger flow is public. Admin should use the Firebase Console to manually set `bookings/{id}.paymentStatus` to `confirmed` to simulate payment confirmation.

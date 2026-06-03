@@ -12,6 +12,8 @@ import {
   Sparkles,
 } from "lucide-react";
 
+import SearchForm from '../components/SearchForm';
+
 const navLinks = [
   { href: "#features", label: "Features" },
   { href: "#how-it-works", label: "How It Works" },
@@ -320,7 +322,11 @@ export default function Home() {
               </dl>
             </div>
 
-            <HeroPreview />
+              <HeroPreview />
+
+              <div className="mt-8">
+                <SearchForm defaultFrom="Yaoundé" defaultTo="Douala" />
+              </div>
           </div>
         </section>
 
