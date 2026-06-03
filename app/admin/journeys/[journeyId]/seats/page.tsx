@@ -1,14 +1,9 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, AlertCircle, RefreshCw } from 'lucide-react';
-import {
-  releaseSeatAdmin,
-  getBookingsForJourney,
-  changeSeatAdmin,
-  getSeatCounts,
-} from '../../../../../lib/adminFirestore';
-import { fetchSeatMap, getJourneyById } from '../../../../../lib/firestore';
+import { getBookingsForJourney, getSeatCounts } from '../../../../../lib/adminFirestore';
+import { listenSeatMap, getJourneyById } from '../../../../../lib/firestore';
 import type { Journey, Booking, SeatMap } from '../../../../../lib/firestore';
 import AdminSeatMap from '../../../../../components/admin/AdminSeatMap';
 
@@ -22,53 +17,51 @@ export default function AdminSeatsPage() {
   const [counts, setCounts] = useState({ total: 0, booked: 0, held: 0, available: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  // Change-seat state: which booking is being moved
-  const [changingBooking, setChangingBooking] = useState<Booking | null>(null);
-  const [changingSeat, setChangingSeat] = useState(false);
 
-  async function load() {
-    setLoading(true);
-    setError('');
+  // ── Fetch bookings + journey (not live — refreshed on demand) ──────────────
+  const loadBookingsAndJourney = useCallback(async () => {
     try {
-      const [j, sm, bks, cts] = await Promise.all([
+      const [j, bks, cts] = await Promise.all([
         getJourneyById(journeyId),
-        fetchSeatMap(journeyId),
         getBookingsForJourney(journeyId),
         getSeatCounts(journeyId),
       ]);
       setJourney(j);
-      setSeatMap(sm);
       setBookings(bks);
       setCounts(cts);
     } catch (e: any) {
-      setError(e.message ?? 'Failed to load seat data');
-    } finally {
-      setLoading(false);
+      setError(e.message ?? 'Failed to load data');
     }
-  }
+  }, [journeyId]);
 
-  useEffect(() => { load(); }, [journeyId]);
+  // ── Live seat map listener ─────────────────────────────────────────────────
+  useEffect(() => {
+    setLoading(true);
+    setError('');
 
-  async function handleRelease(seatNum: string) {
-    try {
-      await releaseSeatAdmin(journeyId, seatNum);
-      await load();
-    } catch (e: any) {
-      alert(e.message ?? 'Failed to release seat');
-    }
-  }
+    // Initial data load
+    loadBookingsAndJourney().finally(() => setLoading(false));
 
-  async function handleChangeSeat(booking: Booking, newSeat: string) {
-    setChangingSeat(true);
-    try {
-      await changeSeatAdmin(booking.id!, journeyId, booking.seatNumber, newSeat);
-      setChangingBooking(null);
-      await load();
-    } catch (e: any) {
-      alert(e.message ?? 'Failed to change seat');
-    } finally {
-      setChangingSeat(false);
-    }
+    // Real-time seat map via onSnapshot
+    const unsub = listenSeatMap(journeyId, (sm) => {
+      setSeatMap(sm);
+      if (sm) {
+        const seats = Object.values(sm.seats ?? {});
+        setCounts({
+          total: seats.length,
+          booked: seats.filter((s) => s.status === 'booked').length,
+          held: seats.filter((s) => s.status === 'held').length,
+          available: seats.filter((s) => s.status === 'available').length,
+        });
+      }
+    });
+
+    return () => unsub();
+  }, [journeyId, loadBookingsAndJourney]);
+
+  // Called by AdminSeatMap after any write so bookings list stays fresh
+  function handleRefresh() {
+    loadBookingsAndJourney();
   }
 
   return (
@@ -83,7 +76,8 @@ export default function AdminSeatsPage() {
         </button>
         <div>
           <h1 className="text-xl font-bold text-slate-900">
-            Seat Map — {journey ? `${journey.origin} → ${journey.destination}` : 'Loading…'}
+            Seat Map —{' '}
+            {journey ? `${journey.origin} → ${journey.destination}` : 'Loading…'}
           </h1>
           {journey && (
             <p className="text-sm text-slate-500 mt-0.5">
@@ -92,7 +86,7 @@ export default function AdminSeatsPage() {
           )}
         </div>
         <button
-          onClick={load}
+          onClick={handleRefresh}
           disabled={loading}
           className="ml-auto p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-teal-300 disabled:opacity-50 transition-colors"
         >
@@ -107,7 +101,7 @@ export default function AdminSeatsPage() {
         </div>
       )}
 
-      {/* Summary cards */}
+      {/* Summary stat cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: 'Total Seats', value: counts.total, color: 'text-slate-700 bg-slate-50 border-slate-200' },
@@ -122,62 +116,26 @@ export default function AdminSeatsPage() {
         ))}
       </div>
 
-      {/* Seat map */}
+      {/* Seat map panel */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
         {loading ? (
           <div className="flex items-center justify-center h-40">
             <div className="w-8 h-8 border-2 border-teal-700 border-t-transparent rounded-full animate-spin" />
           </div>
-        ) : seatMap ? (
+        ) : seatMap && journey ? (
           <AdminSeatMap
             seatMap={seatMap}
             bookings={bookings}
-            onRelease={handleRelease}
-            onChangeSeat={(b) => setChangingBooking(b)}
+            journey={journey}
+            journeyId={journeyId}
+            onRefresh={handleRefresh}
           />
         ) : (
-          <p className="text-sm text-slate-400 text-center py-8">No seat map available for this journey.</p>
+          <p className="text-sm text-slate-400 text-center py-8">
+            No seat map available for this journey.
+          </p>
         )}
       </div>
-
-      {/* Change Seat Modal */}
-      {changingBooking && seatMap && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setChangingBooking(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg">
-            <h3 className="text-base font-semibold text-slate-900 mb-1">
-              Change Seat — {changingBooking.passengerName} {changingBooking.passengerSurname}
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Current seat: <strong>{changingBooking.seatNumber}</strong>. Click an available seat to reassign.
-            </p>
-            <div className="flex flex-col gap-2 overflow-y-auto max-h-96">
-              {Object.entries(seatMap.seats)
-                .filter(([, s]) => s.status === 'available')
-                .sort(([a], [b]) => Number(a) - Number(b))
-                .map(([num]) => (
-                  <button
-                    key={num}
-                    disabled={changingSeat}
-                    onClick={() => handleChangeSeat(changingBooking, num)}
-                    className="flex items-center justify-between px-4 py-2.5 rounded-xl border border-teal-200 bg-teal-50 text-sm font-medium text-teal-800 hover:bg-teal-100 transition-colors disabled:opacity-50"
-                  >
-                    <span>Seat {num}</span>
-                    <span className="text-xs text-teal-600">Available → assign</span>
-                  </button>
-                ))}
-            </div>
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={() => setChangingBooking(null)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

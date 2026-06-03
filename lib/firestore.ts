@@ -39,11 +39,15 @@ export type Journey = {
   status: string;     // active | cancelled
 };
 
-export type SeatStatus = 'available' | 'held' | 'booked';
+export type SeatStatus = 'available' | 'held' | 'booked' | 'blocked' | 'locked';
 
 export type Seat = {
   status: SeatStatus;
   heldUntil?: Timestamp | null;
+  // block metadata
+  blockReason?: string;
+  blockedBy?: string;
+  blockedAt?: Timestamp | null;
 };
 
 export type SeatMap = {

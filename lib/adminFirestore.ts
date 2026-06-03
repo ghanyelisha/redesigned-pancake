@@ -11,6 +11,7 @@ import {
   orderBy,
   limit,
   runTransaction,
+  writeBatch,
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
@@ -259,4 +260,132 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     upcomingJourneys: todayJourneys.slice(0, 10),
     recentBookings,
   };
+}
+
+// ─── Extended seat actions ────────────────────────────────────────────────────
+
+/** Block an available seat with a reason */
+export async function blockSeatAdmin(
+  journeyId: string,
+  seatNumber: string,
+  reason: string,
+  adminUid: string
+): Promise<void> {
+  const seatRef = doc(db, 'seats', journeyId);
+  const snap = await getDoc(seatRef);
+  if (!snap.exists()) throw new Error('Seat map not found');
+  const data = snap.data() as SeatMap;
+  await updateDoc(seatRef, {
+    seats: {
+      ...data.seats,
+      [seatNumber]: {
+        status: 'blocked',
+        heldUntil: null,
+        blockReason: reason,
+        blockedBy: adminUid,
+        blockedAt: Timestamp.now(),
+      },
+    },
+  });
+}
+
+/** Release a blocked seat back to available */
+export async function unblockSeatAdmin(journeyId: string, seatNumber: string): Promise<void> {
+  const seatRef = doc(db, 'seats', journeyId);
+  const snap = await getDoc(seatRef);
+  if (!snap.exists()) throw new Error('Seat map not found');
+  const data = snap.data() as SeatMap;
+  await updateDoc(seatRef, {
+    seats: { ...data.seats, [seatNumber]: { status: 'available', heldUntil: null } },
+  });
+}
+
+/** Cancel a booking document and release its seat back to available */
+export async function cancelBookingFromSeat(
+  journeyId: string,
+  bookingId: string,
+  seatNumber: string
+): Promise<void> {
+  const bookingRef = doc(db, 'bookings', bookingId);
+  const seatRef = doc(db, 'seats', journeyId);
+  await runTransaction(db, async (tx) => {
+    const seatSnap = await tx.get(seatRef);
+    if (!seatSnap.exists()) throw new Error('Seat map not found');
+    const data = seatSnap.data() as SeatMap;
+    tx.update(bookingRef, { paymentStatus: 'cancelled' as Booking['paymentStatus'] });
+    tx.set(
+      seatRef,
+      { seats: { ...data.seats, [seatNumber]: { status: 'available', heldUntil: null } } },
+      { merge: true }
+    );
+  });
+}
+
+/** Force-confirm a pending booking and mark the seat as booked */
+export async function forceConfirmBySeat(
+  journeyId: string,
+  bookingId: string,
+  seatNumber: string
+): Promise<void> {
+  const bookingRef = doc(db, 'bookings', bookingId);
+  const seatRef = doc(db, 'seats', journeyId);
+  await runTransaction(db, async (tx) => {
+    const seatSnap = await tx.get(seatRef);
+    if (!seatSnap.exists()) throw new Error('Seat map not found');
+    const data = seatSnap.data() as SeatMap;
+    tx.update(bookingRef, { paymentStatus: 'confirmed' as Booking['paymentStatus'], confirmedAt: serverTimestamp() });
+    tx.set(
+      seatRef,
+      { seats: { ...data.seats, [seatNumber]: { status: 'booked', heldUntil: null } } },
+      { merge: true }
+    );
+  });
+}
+
+/** Release multiple held seats to available in one write */
+export async function bulkReleaseHolds(journeyId: string, seatNumbers: string[]): Promise<void> {
+  const seatRef = doc(db, 'seats', journeyId);
+  const snap = await getDoc(seatRef);
+  if (!snap.exists()) throw new Error('Seat map not found');
+  const data = snap.data() as SeatMap;
+  const updated = { ...data.seats };
+  seatNumbers.forEach((n) => {
+    updated[n] = { status: 'available', heldUntil: null };
+  });
+  await updateDoc(seatRef, { seats: updated });
+}
+
+/** Mark a journey as departed: set journey.status = 'departed' and lock all available/held seats */
+export async function markJourneyDeparted(journeyId: string): Promise<void> {
+  const journeyRef = doc(db, 'journeys', journeyId);
+  const seatRef = doc(db, 'seats', journeyId);
+  const seatSnap = await getDoc(seatRef);
+  if (!seatSnap.exists()) throw new Error('Seat map not found');
+  const data = seatSnap.data() as SeatMap;
+  const updated = { ...data.seats };
+  Object.keys(updated).forEach((n) => {
+    if (updated[n].status === 'available' || updated[n].status === 'held') {
+      updated[n] = { status: 'locked', heldUntil: null };
+    }
+  });
+  const batch = writeBatch(db);
+  batch.update(journeyRef, { status: 'departed' });
+  batch.set(seatRef, { seats: updated }, { merge: true });
+  await batch.commit();
+}
+
+export type SmsBroadcast = {
+  journeyId: string;
+  message: string;
+  sentBy: string;
+  recipientCount: number;
+  recipients: string[];
+};
+
+/** Write an SMS broadcast document to Firestore (actual sending handled by Cloud Function) */
+export async function createSmsBroadcast(data: SmsBroadcast): Promise<void> {
+  await addDoc(collection(db, 'sms_broadcasts'), {
+    ...data,
+    sentAt: serverTimestamp(),
+  });
 }
