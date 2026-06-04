@@ -49,38 +49,15 @@ function MetricCard({ icon: Icon, label, value, sub, color }: {
   );
 }
 
-// ─── Canvas bar chart ─────────────────────────────────────────────────────────
-
-/** Manual rounded-rect path — fallback for browsers without ctx.roundRect */
-function roundedBar(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-) {
-  if (h <= 0) return;
-  const radius = Math.min(r, w / 2, h / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + w - radius, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
-  ctx.lineTo(x + w, y + h);
-  ctx.lineTo(x, y + h);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-}
+// ─── Canvas line chart ────────────────────────────────────────────────────────
 
 function drawChart(canvas: HTMLCanvasElement, data: MonthlyRevenue[]) {
   const ctx = canvas.getContext('2d');
   if (!ctx || data.length === 0) return;
 
-  // Match canvas intrinsic size to its CSS-rendered size × devicePixelRatio
   const dpr = window.devicePixelRatio || 1;
   const cssW = canvas.offsetWidth;
-  const cssH = Math.round(cssW * (260 / 700)); // maintain ~2.7:1 aspect
+  const cssH = Math.round(cssW * (260 / 700));
   canvas.width = cssW * dpr;
   canvas.height = cssH * dpr;
   canvas.style.height = cssH + 'px';
@@ -88,16 +65,21 @@ function drawChart(canvas: HTMLCanvasElement, data: MonthlyRevenue[]) {
 
   const W = cssW;
   const H = cssH;
-  const padL = 64, padR = 16, padT = 16, padB = 44;
+  const padL = 64, padR = 24, padT = 20, padB = 44;
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
 
   ctx.clearRect(0, 0, W, H);
 
   const maxRev = Math.max(...data.map((d) => d.revenue), 1);
-  const slotW = chartW / data.length;
-  const barW = Math.max(slotW * 0.55, 4);
-  const barOffset = (slotW - barW) / 2;
+  const fontSize = Math.max(9, Math.round(W / 85));
+
+  // Point x positions — evenly spaced
+  const pts = data.map((d, i) => ({
+    x: padL + (i / Math.max(data.length - 1, 1)) * chartW,
+    y: padT + chartH - (d.revenue / maxRev) * chartH,
+    d,
+  }));
 
   // ── Horizontal gridlines + Y labels ──────────────────────────────────────
   const gridLines = 5;
@@ -106,10 +88,12 @@ function drawChart(canvas: HTMLCanvasElement, data: MonthlyRevenue[]) {
     const y = padT + chartH - (i / gridLines) * chartH;
     ctx.strokeStyle = i === 0 ? '#cbd5e1' : '#e2e8f0';
     ctx.lineWidth = i === 0 ? 1.5 : 1;
+    ctx.setLineDash(i === 0 ? [] : [4, 3]);
     ctx.beginPath();
     ctx.moveTo(padL, y);
     ctx.lineTo(padL + chartW, y);
     ctx.stroke();
+    ctx.setLineDash([]);
 
     const val = (maxRev * i) / gridLines;
     const label =
@@ -119,59 +103,68 @@ function drawChart(canvas: HTMLCanvasElement, data: MonthlyRevenue[]) {
         ? Math.round(val / 1_000) + 'K'
         : String(Math.round(val));
     ctx.fillStyle = '#94a3b8';
-    ctx.font = `${Math.max(9, Math.round(W / 80))}px -apple-system,sans-serif`;
+    ctx.font = `${fontSize}px -apple-system,sans-serif`;
     ctx.textAlign = 'right';
-    ctx.fillText(label, padL - 6, y);
+    ctx.fillText(label, padL - 8, y);
   }
 
-  // ── Bars ──────────────────────────────────────────────────────────────────
-  data.forEach((d, i) => {
-    const rawH = (d.revenue / maxRev) * chartH;
-    const barH = Math.max(rawH, d.revenue > 0 ? 2 : 0); // min visible pixel
-    const x = padL + i * slotW + barOffset;
-    const y = padT + chartH - barH;
+  if (pts.length < 2) return;
 
-    // Gradient fill
-    const grad = ctx.createLinearGradient(0, y, 0, padT + chartH);
-    grad.addColorStop(0, '#0f766e');
-    grad.addColorStop(1, '#5eead4');
-    ctx.fillStyle = grad;
-    roundedBar(ctx, x, y, barW, barH, 4);
+  // ── Gradient area fill ────────────────────────────────────────────────────
+  const areaGrad = ctx.createLinearGradient(0, padT, 0, padT + chartH);
+  areaGrad.addColorStop(0, 'rgba(99,102,241,0.28)');
+  areaGrad.addColorStop(1, 'rgba(99,102,241,0.01)');
+
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1];
+    const curr = pts[i];
+    const cpx = (prev.x + curr.x) / 2;
+    ctx.bezierCurveTo(cpx, prev.y, cpx, curr.y, curr.x, curr.y);
+  }
+  ctx.lineTo(pts[pts.length - 1].x, padT + chartH);
+  ctx.lineTo(pts[0].x, padT + chartH);
+  ctx.closePath();
+  ctx.fillStyle = areaGrad;
+  ctx.fill();
+
+  // ── Line ─────────────────────────────────────────────────────────────────
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1];
+    const curr = pts[i];
+    const cpx = (prev.x + curr.x) / 2;
+    ctx.bezierCurveTo(cpx, prev.y, cpx, curr.y, curr.x, curr.y);
+  }
+  ctx.strokeStyle = '#6366f1';
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  // ── Dots + X labels ──────────────────────────────────────────────────────
+  pts.forEach(({ x, y, d }) => {
+    // Outer ring
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+    // Inner dot
+    ctx.beginPath();
+    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#6366f1';
     ctx.fill();
 
-    // Value label above bar (only if bar is tall enough)
-    if (barH > 18 && d.revenue > 0) {
-      const valStr =
-        d.revenue >= 1_000_000
-          ? (d.revenue / 1_000_000).toFixed(1) + 'M'
-          : d.revenue >= 1_000
-          ? Math.round(d.revenue / 1_000) + 'K'
-          : String(d.revenue);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `bold ${Math.max(8, Math.round(W / 90))}px -apple-system,sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(valStr, x + barW / 2, y + Math.min(barH / 2, 12));
-    }
-
-    // X-axis label (month / period)
+    // X-axis label
     const lbl = d.label.split(' ');
-    const fontSize = Math.max(8, Math.round(W / 95));
     ctx.fillStyle = '#64748b';
     ctx.font = `${fontSize}px -apple-system,sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(lbl[0], x + barW / 2, padT + chartH + 6);
-    if (lbl[1]) ctx.fillText(lbl[1], x + barW / 2, padT + chartH + 6 + fontSize + 2);
+    ctx.fillText(lbl[0], x, padT + chartH + 6);
+    if (lbl[1]) ctx.fillText(lbl[1], x, padT + chartH + 6 + fontSize + 2);
   });
-
-  // ── Left axis line ────────────────────────────────────────────────────────
-  ctx.strokeStyle = '#cbd5e1';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(padL, padT);
-  ctx.lineTo(padL, padT + chartH);
-  ctx.stroke();
 }
 
 function RevenueChart({ data, grouping }: { data: MonthlyRevenue[]; grouping: 'monthly' | 'weekly' }) {
@@ -201,7 +194,7 @@ function RevenueChart({ data, grouping }: { data: MonthlyRevenue[]; grouping: 'm
         width={700}
         height={260}
         className="w-full block"
-        aria-label={`${grouping} confirmed revenue bar chart`}
+        aria-label={`${grouping} confirmed revenue line chart`}
       />
     </div>
   );

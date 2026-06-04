@@ -458,13 +458,27 @@ export default function ChatWidget({ bookingId }: Props) {
       )}
 
       {/* ── FAB ── */}
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-label={open ? 'Close support chat' : 'Open support chat'}
-        className="fixed bottom-4 right-4 z-[9999] w-14 h-14 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white shadow-xl flex items-center justify-center transition-all active:scale-95"
-      >
-        {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
-      </button>
+      {(() => {
+        const hasOpenSession = !open && stage === 'chat' && session?.status !== 'closed';
+        return (
+          <button
+            onClick={() => setOpen((o) => !o)}
+            aria-label={open ? 'Close support chat' : hasOpenSession ? 'Resume chat' : 'Open support chat'}
+            className={`fixed bottom-4 right-4 z-[9999] h-14 rounded-full bg-[#1e3a8a] hover:bg-blue-900 text-white shadow-xl flex items-center justify-center transition-all active:scale-95 ${hasOpenSession ? 'px-5 gap-2' : 'w-14'}`}
+          >
+            {open ? (
+              <X className="h-6 w-6" />
+            ) : hasOpenSession ? (
+              <>
+                <MessageCircle className="h-5 w-5 shrink-0" />
+                <span className="text-sm font-semibold whitespace-nowrap">Resume Chat</span>
+              </>
+            ) : (
+              <MessageCircle className="h-6 w-6" />
+            )}
+          </button>
+        );
+      })()}
     </>
   );
 }

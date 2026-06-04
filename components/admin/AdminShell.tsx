@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -12,15 +12,37 @@ import {
   Menu,
   ChevronRight,
 } from 'lucide-react';
+import { onSnapshot, query, collection, where } from 'firebase/firestore';
+import { db } from '../../lib/firebase';
+import { listenAllSessions } from '../../lib/chat';
 import { subscribeAdminAuth, adminLogout } from '../../lib/adminAuth';
 import type { User } from 'firebase/auth';
 
 const NAV = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/journeys', label: 'Journeys', icon: Route },
-  { href: '/admin/bookings', label: 'Bookings', icon: BookOpen },
-  { href: '/admin/support', label: 'Support', icon: MessageCircle },
+  { href: '/admin/bookings', label: 'Bookings', icon: BookOpen, badge: 'bookings' as const },
+  { href: '/admin/support', label: 'Support', icon: MessageCircle, badge: 'support' as const },
 ];
+
+function playDing() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.35, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.6);
+  } catch {
+    // AudioContext not available — silently ignore
+  }
+}
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -30,6 +52,10 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   // All hooks must be called unconditionally — bypass logic is handled in render
   const [user, setUser] = useState<User | null | 'loading'>('loading');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pendingBookings, setPendingBookings] = useState(0);
+  const [unreadSupport, setUnreadSupport] = useState(0);
+  const prevBookings = useRef(-1);
+  const prevSupport = useRef(-1);
 
   useEffect(() => {
     // Don't subscribe to auth on the login page — it manages its own auth state
@@ -44,6 +70,31 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     });
     return unsub;
   }, [isLoginPage, router]);
+
+  // Real-time badge: pending bookings
+  useEffect(() => {
+    if (isLoginPage) return;
+    const q = query(collection(db, 'bookings'), where('paymentStatus', '==', 'pending'));
+    const unsub = onSnapshot(q, (snap) => {
+      const count = snap.size;
+      if (prevBookings.current >= 0 && count > prevBookings.current) playDing();
+      prevBookings.current = count;
+      setPendingBookings(count);
+    });
+    return unsub;
+  }, [isLoginPage]);
+
+  // Real-time badge: unread support messages
+  useEffect(() => {
+    if (isLoginPage) return;
+    const unsub = listenAllSessions((sessions) => {
+      const total = sessions.reduce((s, sess) => s + (sess.unreadGuestMessages ?? 0), 0);
+      if (prevSupport.current >= 0 && total > prevSupport.current) playDing();
+      prevSupport.current = total;
+      setUnreadSupport(total);
+    });
+    return unsub;
+  }, [isLoginPage]);
 
   async function logout() {
     await adminLogout();
@@ -88,8 +139,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
           Main Menu
         </p>
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {NAV.map(({ href, label, icon: Icon, badge }) => {
           const active = pathname === href || pathname.startsWith(href + '/');
+          const count = badge === 'bookings' ? pendingBookings : badge === 'support' ? unreadSupport : 0;
           return (
             <Link
               key={href}
@@ -103,7 +155,12 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             >
               <Icon className="h-4 w-4 shrink-0" />
               {label}
-              {active && <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-60" />}
+              {count > 0 && (
+                <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white leading-none">
+                  {count > 99 ? '99+' : count}
+                </span>
+              )}
+              {active && count === 0 && <ChevronRight className="h-3.5 w-3.5 ml-auto opacity-60" />}
             </Link>
           );
         })}

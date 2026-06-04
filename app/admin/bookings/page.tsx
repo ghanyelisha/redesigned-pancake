@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useMemo } from 'react';
-import { Search, Filter, Download, CheckCircle2, XCircle, ArrowLeftRight, ChevronLeft, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
+import { Search, Filter, Download, CheckCircle2, XCircle, ArrowLeftRight, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, Plus } from 'lucide-react';
+import Link from 'next/link';
 import {
   getAllBookings,
   confirmBooking,
@@ -173,6 +174,13 @@ export default function BookingsPage() {
             <Download className="h-4 w-4" />
             Export CSV
           </button>
+          <Link
+            href="/admin/bookings/new"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-sm font-semibold transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            New Booking
+          </Link>
         </div>
       </div>
 
