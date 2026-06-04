@@ -28,7 +28,10 @@ export default function AdminLoginPage() {
     setLoading(true);
     try {
       await adminLogin(email.trim(), password);
-      router.replace('/admin/dashboard');
+      // Hard navigation so the browser sends the newly-set admin_session cookie
+      // with the request. router.replace() is a soft navigation that can race
+      // the middleware cookie-check before document.cookie is visible to the server.
+      window.location.replace('/admin/dashboard');
     } catch (err: any) {
       const code = err?.code ?? '';
       if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {

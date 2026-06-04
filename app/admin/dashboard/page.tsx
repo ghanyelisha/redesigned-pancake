@@ -51,85 +51,159 @@ function MetricCard({ icon: Icon, label, value, sub, color }: {
 
 // ─── Canvas bar chart ─────────────────────────────────────────────────────────
 
+/** Manual rounded-rect path — fallback for browsers without ctx.roundRect */
+function roundedBar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) {
+  if (h <= 0) return;
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+  ctx.lineTo(x + w, y + h);
+  ctx.lineTo(x, y + h);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function drawChart(canvas: HTMLCanvasElement, data: MonthlyRevenue[]) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx || data.length === 0) return;
+
+  // Match canvas intrinsic size to its CSS-rendered size × devicePixelRatio
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.offsetWidth;
+  const cssH = Math.round(cssW * (260 / 700)); // maintain ~2.7:1 aspect
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  canvas.style.height = cssH + 'px';
+  ctx.scale(dpr, dpr);
+
+  const W = cssW;
+  const H = cssH;
+  const padL = 64, padR = 16, padT = 16, padB = 44;
+  const chartW = W - padL - padR;
+  const chartH = H - padT - padB;
+
+  ctx.clearRect(0, 0, W, H);
+
+  const maxRev = Math.max(...data.map((d) => d.revenue), 1);
+  const slotW = chartW / data.length;
+  const barW = Math.max(slotW * 0.55, 4);
+  const barOffset = (slotW - barW) / 2;
+
+  // ── Horizontal gridlines + Y labels ──────────────────────────────────────
+  const gridLines = 5;
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i <= gridLines; i++) {
+    const y = padT + chartH - (i / gridLines) * chartH;
+    ctx.strokeStyle = i === 0 ? '#cbd5e1' : '#e2e8f0';
+    ctx.lineWidth = i === 0 ? 1.5 : 1;
+    ctx.beginPath();
+    ctx.moveTo(padL, y);
+    ctx.lineTo(padL + chartW, y);
+    ctx.stroke();
+
+    const val = (maxRev * i) / gridLines;
+    const label =
+      val >= 1_000_000
+        ? (val / 1_000_000).toFixed(1) + 'M'
+        : val >= 1_000
+        ? Math.round(val / 1_000) + 'K'
+        : String(Math.round(val));
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = `${Math.max(9, Math.round(W / 80))}px -apple-system,sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.fillText(label, padL - 6, y);
+  }
+
+  // ── Bars ──────────────────────────────────────────────────────────────────
+  data.forEach((d, i) => {
+    const rawH = (d.revenue / maxRev) * chartH;
+    const barH = Math.max(rawH, d.revenue > 0 ? 2 : 0); // min visible pixel
+    const x = padL + i * slotW + barOffset;
+    const y = padT + chartH - barH;
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, y, 0, padT + chartH);
+    grad.addColorStop(0, '#0f766e');
+    grad.addColorStop(1, '#5eead4');
+    ctx.fillStyle = grad;
+    roundedBar(ctx, x, y, barW, barH, 4);
+    ctx.fill();
+
+    // Value label above bar (only if bar is tall enough)
+    if (barH > 18 && d.revenue > 0) {
+      const valStr =
+        d.revenue >= 1_000_000
+          ? (d.revenue / 1_000_000).toFixed(1) + 'M'
+          : d.revenue >= 1_000
+          ? Math.round(d.revenue / 1_000) + 'K'
+          : String(d.revenue);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.max(8, Math.round(W / 90))}px -apple-system,sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(valStr, x + barW / 2, y + Math.min(barH / 2, 12));
+    }
+
+    // X-axis label (month / period)
+    const lbl = d.label.split(' ');
+    const fontSize = Math.max(8, Math.round(W / 95));
+    ctx.fillStyle = '#64748b';
+    ctx.font = `${fontSize}px -apple-system,sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(lbl[0], x + barW / 2, padT + chartH + 6);
+    if (lbl[1]) ctx.fillText(lbl[1], x + barW / 2, padT + chartH + 6 + fontSize + 2);
+  });
+
+  // ── Left axis line ────────────────────────────────────────────────────────
+  ctx.strokeStyle = '#cbd5e1';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(padL, padT);
+  ctx.lineTo(padL, padT + chartH);
+  ctx.stroke();
+}
+
 function RevenueChart({ data, grouping }: { data: MonthlyRevenue[]; grouping: 'monthly' | 'weekly' }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
+  // Redraw whenever data changes or the container resizes
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || data.length === 0) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
 
-    const W = canvas.width;
-    const H = canvas.height;
-    const padL = 80, padR = 20, padT = 20, padB = 50;
-    const chartW = W - padL - padR;
-    const chartH = H - padT - padB;
+    // Initial draw
+    drawChart(canvas, data);
 
-    ctx.clearRect(0, 0, W, H);
-
-    const maxRev = Math.max(...data.map((d) => d.revenue), 1);
-    const barW = (chartW / data.length) * 0.6;
-    const gap = (chartW / data.length) * 0.4;
-
-    // Y axis gridlines
-    ctx.strokeStyle = '#e2e8f0';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 4; i++) {
-      const y = padT + chartH - (i / 4) * chartH;
-      ctx.beginPath();
-      ctx.moveTo(padL, y);
-      ctx.lineTo(padL + chartW, y);
-      ctx.stroke();
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '10px sans-serif';
-      ctx.textAlign = 'right';
-      const val = (maxRev * i) / 4;
-      ctx.fillText(val >= 1_000_000 ? `${(val / 1_000_000).toFixed(1)}M` : val >= 1_000 ? `${(val / 1_000).toFixed(0)}K` : String(Math.round(val)), padL - 6, y + 4);
-    }
-
-    // Bars
-    data.forEach((d, i) => {
-      const barH = (d.revenue / maxRev) * chartH;
-      const x = padL + i * (barW + gap) + gap / 2;
-      const y = padT + chartH - barH;
-
-      // Bar gradient
-      const grad = ctx.createLinearGradient(0, y, 0, padT + chartH);
-      grad.addColorStop(0, '#0f766e');
-      grad.addColorStop(1, '#99f6e4');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.roundRect?.(x, y, barW, barH, [4, 4, 0, 0]);
-      ctx.fill();
-
-      // Label
-      ctx.fillStyle = '#64748b';
-      ctx.font = '9px sans-serif';
-      ctx.textAlign = 'center';
-      const lbl = d.label.split(' ');
-      ctx.fillText(lbl[0], x + barW / 2, padT + chartH + 14);
-      if (lbl[1]) ctx.fillText(lbl[1], x + barW / 2, padT + chartH + 26);
-    });
-
-    // Axis lines
-    ctx.strokeStyle = '#cbd5e1';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(padL, padT);
-    ctx.lineTo(padL, padT + chartH);
-    ctx.lineTo(padL + chartW, padT + chartH);
-    ctx.stroke();
+    // Resize observer keeps the chart sharp when sidebar toggles or window resizes
+    const ro = new ResizeObserver(() => drawChart(canvas, data));
+    const parent = canvas.parentElement;
+    if (parent) ro.observe(parent);
+    return () => ro.disconnect();
   }, [data]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={800}
-      height={260}
-      className="w-full h-auto"
-      aria-label={`${grouping} revenue chart`}
-    />
+    <div ref={containerRef} className="w-full">
+      <canvas
+        ref={canvasRef}
+        // intrinsic size is set dynamically in drawChart; these are just initial placeholders
+        width={700}
+        height={260}
+        className="w-full block"
+        aria-label={`${grouping} confirmed revenue bar chart`}
+      />
+    </div>
   );
 }
 
