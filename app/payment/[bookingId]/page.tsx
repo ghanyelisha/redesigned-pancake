@@ -73,7 +73,14 @@ export default function PaymentPage({ params }: any) {
 
   // ── Load booking + listen for status changes ──────────────────────────────
   useEffect(() => {
-    getBookingById(bookingId).then((b) => setBooking(b));
+    getBookingById(bookingId).then((b) => {
+      setBooking(b);
+      // Pre-fill the phone input from the passenger's number collected at booking
+      if (b?.passengerPhone) {
+        const stripped = String(b.passengerPhone).replace(/[\s\-()]/g, '').replace(/^(\+237|237)/, '');
+        if (/^6\d{8}$/.test(stripped)) setPhone(stripped);
+      }
+    });
     const unsub = listenBooking(bookingId, (b) => {
       if (b) setBooking(b);
       if (b?.paymentStatus === 'confirmed') {

@@ -48,6 +48,10 @@ export default function AdminNewBookingPage() {
   const [mobilePayPhone, setMobilePayPhone] = useState('');
   const [mobilePayService, setMobilePayService] = useState<'MTN' | 'ORANGE'>('MTN');
 
+  // Idempotency: booking docs created only once; retries reuse these
+  const [pendingIds, setPendingIds] = useState<string[] | null>(null);
+  const [pendingRef, setPendingRef] = useState<string | null>(null);
+
   // Submission
   const [submitting, setSubmitting] = useState(false);
   const [awaitingUssd, setAwaitingUssd] = useState(false);
@@ -85,62 +89,75 @@ export default function AdminNewBookingPage() {
     setSubmitting(true);
     setSubmitError('');
     try {
-      const sharedRef = genRef();
-      const ids: string[] = [];
+      // ── Phase 1: create booking docs exactly once ──────────────────────────
+      // On retry after a timeout, pendingIds/pendingRef are already set —
+      // skip creation entirely and reuse the same Firestore documents + reference.
+      let ids = pendingIds;
+      let sharedRef = pendingRef;
 
-      for (const seat of selectedSeats) {
-        const id = await createBooking({
-          journeyId: selectedJourney.id!,
-          origin: selectedJourney.origin,
-          destination: selectedJourney.destination,
-          operatorName: selectedJourney.operatorName,
-          departureDate: selectedJourney.departureDate,
-          departureTime: selectedJourney.departureTime,
-          passengerName: passengerData.name,
-          passengerSurname: passengerData.surname,
-          passengerPhone: passengerData.mobile,
-          passengerEmail: passengerData.email,
-          passengerGender: passengerData.gender,
-          idType: passengerData.idType,
-          idNumber: passengerData.idNumber,
-          seatNumber: seat,
-          luggageSize: luggage?.size || 'No luggage',
-          luggageTypes: luggage?.types || [],
-          totalAmount: selectedJourney.pricePerSeat ?? 0,
-          paymentMethod: paymentMethod === 'cash' ? 'cash' : 'mobile_money',
-          paymentStatus: 'pending',
-          bookingReference: `${sharedRef}-${seat}`,
-          boardingPoint: boardingPoint || selectedJourney.boardingStation,
-          droppingPoint: selectedJourney.droppingStation,
-        } as any);
-        ids.push(id);
+      if (!ids || !sharedRef) {
+        sharedRef = genRef();
+        ids = [];
+        for (const seat of selectedSeats) {
+          const id = await createBooking({
+            journeyId: selectedJourney.id!,
+            origin: selectedJourney.origin,
+            destination: selectedJourney.destination,
+            operatorName: selectedJourney.operatorName,
+            departureDate: selectedJourney.departureDate,
+            departureTime: selectedJourney.departureTime,
+            passengerName: passengerData.name,
+            passengerSurname: passengerData.surname,
+            passengerPhone: passengerData.mobile,
+            passengerEmail: passengerData.email,
+            passengerGender: passengerData.gender,
+            idType: passengerData.idType,
+            idNumber: passengerData.idNumber,
+            seatNumber: seat,
+            luggageSize: luggage?.size || 'No luggage',
+            luggageTypes: luggage?.types || [],
+            totalAmount: selectedJourney.pricePerSeat ?? 0,
+            paymentMethod: paymentMethod === 'cash' ? 'cash' : 'mobile_money',
+            paymentStatus: 'pending',
+            bookingReference: `${sharedRef}-${seat}`,
+            boardingPoint: boardingPoint || selectedJourney.boardingStation,
+            droppingPoint: selectedJourney.droppingStation,
+          } as any);
+          ids.push(id);
+        }
+        // Persist so any retry doesn't re-create these documents
+        setPendingIds(ids);
+        setPendingRef(sharedRef);
       }
 
+      // ── Phase 2: fulfil payment ────────────────────────────────────────────
       if (paymentMethod === 'cash') {
-        // Immediately confirm all seats for cash payments
         await Promise.all(ids.map((id) => confirmBooking(id)));
         setCreatedRef(sharedRef);
         setDone(true);
       } else {
-        // Mobile money: show USSD instructions, then hit the payment API
         const phone = mobilePayPhone.replace(/[\s\-()]/g, '').replace(/^(\+237|237)/, '');
         setAwaitingUssd(true);
-        const res = await fetch('/api/payment/collect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            phone: '+237' + phone,
-            service: mobilePayService,
-            amount: selectedJourney.pricePerSeat * selectedSeats.length,
-            reference: sharedRef,
-          }),
-        });
-        setAwaitingUssd(false);
-        const json = await res.json();
-        if (!res.ok || json.status === 'FAILED') {
+        let res: Response;
+        try {
+          res = await fetch('/api/payment/collect', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              phone: '+237' + phone,
+              service: mobilePayService,
+              // Same reference every retry — MeSomb deduplicates on their end
+              amount: selectedJourney.pricePerSeat * selectedSeats.length,
+              reference: sharedRef,
+            }),
+          });
+        } finally {
+          setAwaitingUssd(false);
+        }
+        const json = await res!.json();
+        if (!res!.ok || json.status === 'FAILED') {
           throw new Error(json.message || 'Mobile money payment failed.');
         }
-        // Confirm all booking IDs after successful payment
         await Promise.all(ids.map((id) => confirmBooking(id)));
         setCreatedRef(sharedRef);
         setDone(true);
@@ -262,6 +279,9 @@ export default function AdminNewBookingPage() {
                   setSelectedJourney(j);
                   setBoardingPoint(j.boardingStation || '');
                   setSelectedSeats([]);
+                  // Changing journey invalidates any previously created booking docs
+                  setPendingIds(null);
+                  setPendingRef(null);
                   setStep('seats');
                 }}
                 className={`w-full text-left px-4 py-3 rounded-xl border transition-colors ${
@@ -398,7 +418,16 @@ export default function AdminNewBookingPage() {
             <LuggageOptions onChange={setLuggage} />
           </div>
           <button
-            onClick={() => { if (validatePassenger()) setStep('payment'); }}
+            onClick={() => {
+              if (validatePassenger()) {
+                // Pre-fill the mobile money phone from the passenger's number
+                if (passengerData.mobile) {
+                  const stripped = passengerData.mobile.replace(/[\s\-()]/g, '').replace(/^(\+237|237)/, '');
+                  setMobilePayPhone(stripped);
+                }
+                setStep('payment');
+              }
+            }}
             className="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors"
           >
             Continue to Payment
