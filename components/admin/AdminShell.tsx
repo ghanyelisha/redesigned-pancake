@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Route,
   BookOpen,
+  MessageCircle,
   LogOut,
   Menu,
   ChevronRight,
@@ -18,6 +19,7 @@ const NAV = [
   { href: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/admin/journeys', label: 'Journeys', icon: Route },
   { href: '/admin/bookings', label: 'Bookings', icon: BookOpen },
+  { href: '/admin/support', label: 'Support', icon: MessageCircle },
 ];
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {

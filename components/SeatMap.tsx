@@ -67,22 +67,23 @@ function SeatBtn({
   const urg: HoldUrgency = isHeld ? heldUrgency(heldUntil) : 'normal';
 
   // Fill colour
+  // Available = navy blue, Booked/Held (other user) = red, Selected = yellow
   const fill = isSel
-    ? '#0f766e'
+    ? '#ca8a04'   // yellow / amber — current user's selection
     : isBooked
-    ? '#374151'
+    ? '#dc2626'   // red — sold
     : isHeld
-    ? urg === 'critical' ? '#dc2626' : urg === 'warning' ? '#f97316' : '#d97706'
-    : '#dc2626'; // available → red (client brand)
+    ? '#dc2626'   // red — held by another user
+    : '#1e3a8a';  // navy blue — available
 
   // Label colour
   const labelColor = isSel
-    ? '#0f766e'
+    ? '#78350f'
     : isBooked
-    ? '#6b7280'
+    ? '#991b1b'
     : isHeld
-    ? urg === 'critical' ? '#991b1b' : urg === 'warning' ? '#9a3412' : '#92400e'
-    : '#dc2626';
+    ? '#991b1b'
+    : '#1e3a8a';
 
   // Wrapper ring/animation for held urgency
   const wrapCls = isHeld
@@ -258,28 +259,16 @@ export default function SeatMap({
       {/* ── Legend ── */}
       <div className="flex flex-wrap items-center gap-4 mb-5 text-xs font-medium text-slate-600">
         <span className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded-sm bg-red-600" />
+          <span className="w-3.5 h-3.5 rounded-sm bg-blue-900" />
           Available ({available})
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded-sm bg-amber-500" />
-          Held — &gt;5 min
+          <span className="w-3.5 h-3.5 rounded-sm bg-red-600" />
+          Sold / Held ({sold})
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded-sm bg-orange-500" />
-          Held — &lt;5 min
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded-sm bg-red-500 ring-2 ring-red-300" />
-          Held — &lt;1 min
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded-sm bg-gray-500 opacity-50" />
-          Sold ({sold})
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded-sm bg-teal-700 ring-2 ring-teal-400" />
-          Selected ({localSelected.length})
+          <span className="w-3.5 h-3.5 rounded-sm bg-yellow-500 ring-2 ring-yellow-300" />
+          Your Selection ({localSelected.length})
         </span>
       </div>
 

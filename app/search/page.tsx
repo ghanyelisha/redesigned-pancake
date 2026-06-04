@@ -7,7 +7,7 @@ import DateStrip from '../../components/DateStrip';
 import BookingStepper from '../../components/BookingStepper';
 import { fetchJourneys, listenSeatMap } from '../../lib/firestore';
 
-const CITIES = ['Yaoundé', 'Douala', 'Bamenda', 'Buea', 'Limbé', 'Kumba', 'Bafoussam', 'Ngaoundéré'];
+const CITIES = ['Bamenda', 'Yaoundé', 'Douala', 'Buea', 'Limbé', 'Kumba'];
 
 // ── Inline search bar used at top of results page ──
 function SearchBar({ origin, destination, date }: { origin: string; destination: string; date: string }) {
@@ -319,12 +319,14 @@ function SearchResults() {
                 <div className="flex items-center gap-2 mb-4">
                   <Bus className="h-4 w-4 text-teal-700" />
                   <p className="text-sm font-semibold text-slate-700">
-                    <span className="text-teal-700 font-bold">{filtered.length}</span> result{filtered.length !== 1 ? 's' : ''} found for you
+                    Total <span className="text-teal-700 font-bold">{filtered.length}</span> Bus{filtered.length !== 1 ? 'es' : ''} found
                   </p>
                 </div>
                 {filtered.length === 0 ? (
-                  <div className="bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-500 text-sm">
-                    No buses found for this route and date. Try adjusting your filters.
+                  <div className="bg-white rounded-xl border border-slate-200 p-10 text-center space-y-2">
+                    <Bus className="h-10 w-10 text-slate-300 mx-auto" />
+                    <p className="text-slate-600 font-medium text-sm">No departures found for {origin} → {destination} on {date ? new Date(date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }) : 'this date'}.</p>
+                    <p className="text-slate-400 text-xs">Try selecting a different date using the date strip above, or check back later.</p>
                   </div>
                 ) : (
                   filtered.map((j) => (

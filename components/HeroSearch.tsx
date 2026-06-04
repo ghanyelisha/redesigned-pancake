@@ -7,20 +7,16 @@ const CITIES = [
   'Bamenda',
   'Yaoundé',
   'Douala',
-  'Bafoussam',
   'Buea',
   'Limbé',
   'Kumba',
-  'Ngaoundéré',
-  'Garoua',
-  'Maroua',
 ];
 
 const POPULAR = [
   { from: 'Bamenda', to: 'Yaoundé' },
   { from: 'Bamenda', to: 'Douala' },
-  { from: 'Yaoundé', to: 'Douala' },
-  { from: 'Bamenda', to: 'Bafoussam' },
+  { from: 'Douala', to: 'Buea' },
+  { from: 'Bamenda', to: 'Kumba' },
 ];
 
 export default function HeroSearch() {

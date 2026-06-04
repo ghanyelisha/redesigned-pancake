@@ -389,3 +389,210 @@ export async function createSmsBroadcast(data: SmsBroadcast): Promise<void> {
     sentAt: serverTimestamp(),
   });
 }
+
+// ─── All-time stats (Section 11) ─────────────────────────────────────────────
+
+export type AllTimeStats = {
+  totalBookings: number;
+  totalConfirmedRevenue: number;
+  totalJourneys: number;
+  totalPassengersServed: number;
+  totalRoutes: number;
+};
+
+export async function getAllTimeStats(): Promise<AllTimeStats> {
+  const [bookingsSnap, journeysSnap] = await Promise.all([
+    getDocs(collection(db, 'bookings')),
+    getDocs(collection(db, 'journeys')),
+  ]);
+
+  const bookings = bookingsSnap.docs.map((d) => d.data() as Booking);
+  const journeys = journeysSnap.docs.map((d) => d.data() as Journey);
+
+  const totalBookings = bookings.length;
+  const totalConfirmedRevenue = bookings
+    .filter((b) => b.paymentStatus === 'confirmed')
+    .reduce((s, b) => s + (b.totalAmount ?? 0), 0);
+  const totalPassengersServed = bookings.filter((b) => b.paymentStatus === 'confirmed').length;
+  const totalJourneys = journeys.length;
+
+  const routeSet = new Set<string>();
+  journeys.forEach((j) => {
+    if (j.origin && j.destination) routeSet.add(`${j.origin}→${j.destination}`);
+  });
+
+  return {
+    totalBookings,
+    totalConfirmedRevenue,
+    totalJourneys,
+    totalPassengersServed,
+    totalRoutes: routeSet.size,
+  };
+}
+
+export type MonthlyRevenue = { label: string; revenue: number; month: string };
+
+export async function getMonthlyRevenue(months = 12): Promise<MonthlyRevenue[]> {
+  const snap = await getDocs(
+    query(collection(db, 'bookings'), where('paymentStatus', '==', 'confirmed'))
+  );
+
+  const map: Record<string, number> = {};
+  snap.docs.forEach((d) => {
+    const b = d.data() as Booking;
+    // createdAt may be Timestamp or null
+    const ts = b.createdAt as Timestamp | null;
+    if (!ts) return;
+    const date = ts.toDate ? ts.toDate() : new Date(ts as any);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    map[key] = (map[key] ?? 0) + (b.totalAmount ?? 0);
+  });
+
+  const results: MonthlyRevenue[] = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+    results.push({ label, revenue: map[key] ?? 0, month: key });
+  }
+  return results;
+}
+
+export type TopRoute = {
+  route: string;
+  totalBookings: number;
+  totalRevenue: number;
+  avgOccupancy: number;
+};
+
+export async function getTopRoutes(): Promise<TopRoute[]> {
+  const [bookingsSnap, journeysSnap] = await Promise.all([
+    getDocs(collection(db, 'bookings')),
+    getDocs(collection(db, 'journeys')),
+  ]);
+
+  const bookings = bookingsSnap.docs.map((d) => d.data() as any);
+  const journeys = journeysSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Journey) }));
+
+  const routeMap: Record<string, { bookings: number; revenue: number; seats: number; totalSeats: number }> = {};
+
+  bookings.forEach((b: any) => {
+    if (!b.origin || !b.destination) return;
+    const key = `${b.origin} → ${b.destination}`;
+    if (!routeMap[key]) routeMap[key] = { bookings: 0, revenue: 0, seats: 0, totalSeats: 0 };
+    routeMap[key].bookings++;
+    if (b.paymentStatus === 'confirmed') routeMap[key].revenue += b.totalAmount ?? 0;
+  });
+
+  journeys.forEach((j) => {
+    if (!j.origin || !j.destination) return;
+    const key = `${j.origin} → ${j.destination}`;
+    if (!routeMap[key]) routeMap[key] = { bookings: 0, revenue: 0, seats: 0, totalSeats: 0 };
+    routeMap[key].totalSeats += j.totalSeats ?? 0;
+  });
+
+  return Object.entries(routeMap)
+    .map(([route, v]) => ({
+      route,
+      totalBookings: v.bookings,
+      totalRevenue: v.revenue,
+      avgOccupancy: v.totalSeats > 0 ? Math.round((v.bookings / v.totalSeats) * 100) : 0,
+    }))
+    .sort((a, b) => b.totalBookings - a.totalBookings)
+    .slice(0, 5);
+}
+
+export type ActivityEvent = {
+  type: 'booking' | 'confirmed' | 'cancelled' | 'departed' | 'hold_released';
+  title: string;
+  detail: string;
+  timestamp: Timestamp | null;
+  borderColor: string;
+};
+
+export async function getRecentActivity(): Promise<ActivityEvent[]> {
+  const [bookingsSnap, journeysSnap] = await Promise.all([
+    getDocs(query(collection(db, 'bookings'), orderBy('createdAt', 'desc'), limit(10))),
+    getDocs(query(collection(db, 'journeys'), orderBy('createdAt', 'desc'), limit(5))),
+  ]);
+
+  const events: ActivityEvent[] = [];
+
+  bookingsSnap.docs.forEach((d) => {
+    const b = { id: d.id, ...(d.data() as any) };
+    if (b.paymentStatus === 'confirmed') {
+      events.push({
+        type: 'confirmed',
+        title: 'Payment confirmed',
+        detail: `${b.bookingReference} · FCFA ${(b.totalAmount ?? 0).toLocaleString('fr-FR')}`,
+        timestamp: b.createdAt ?? null,
+        borderColor: 'border-l-emerald-500',
+      });
+    } else if (b.paymentStatus === 'cancelled' || b.paymentStatus === 'expired') {
+      events.push({
+        type: 'cancelled',
+        title: 'Booking cancelled',
+        detail: `${b.bookingReference} · ${b.origin} → ${b.destination}`,
+        timestamp: b.createdAt ?? null,
+        borderColor: 'border-l-red-500',
+      });
+    } else {
+      events.push({
+        type: 'booking',
+        title: 'New booking',
+        detail: `${b.passengerName ?? ''} ${b.passengerSurname ?? ''} · Seat ${b.seatNumber} · ${b.origin} → ${b.destination}`,
+        timestamp: b.createdAt ?? null,
+        borderColor: 'border-l-blue-500',
+      });
+    }
+  });
+
+  journeysSnap.docs.forEach((d) => {
+    const j = { id: d.id, ...(d.data() as any) };
+    if (j.status === 'departed') {
+      events.push({
+        type: 'departed',
+        title: 'Journey departed',
+        detail: `${j.origin} → ${j.destination} · ${j.departureTime}`,
+        timestamp: j.createdAt ?? null,
+        borderColor: 'border-l-slate-800',
+      });
+    }
+  });
+
+  events.sort((a, b) => {
+    const ta = a.timestamp?.toMillis?.() ?? 0;
+    const tb = b.timestamp?.toMillis?.() ?? 0;
+    return tb - ta;
+  });
+
+  return events.slice(0, 10);
+}
+
+export type JourneyWithStats = Journey & {
+  bookedSeats: number;
+  occupancyPct: number;
+  confirmedRevenue: number;
+};
+
+export async function getAllJourneysWithStats(): Promise<JourneyWithStats[]> {
+  const [journeysSnap, bookingsSnap] = await Promise.all([
+    getDocs(query(collection(db, 'journeys'), orderBy('departureDate', 'desc'))),
+    getDocs(collection(db, 'bookings')),
+  ]);
+
+  const journeys = journeysSnap.docs.map((d) => ({ id: d.id, ...(d.data() as Journey) }));
+  const bookings = bookingsSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+
+  return journeys.map((j) => {
+    const jBookings = bookings.filter((b) => b.journeyId === j.id);
+    const bookedSeats = jBookings.filter((b) => b.paymentStatus === 'confirmed').length;
+    const confirmedRevenue = jBookings
+      .filter((b) => b.paymentStatus === 'confirmed')
+      .reduce((s, b) => s + (b.totalAmount ?? 0), 0);
+    const occupancyPct = j.totalSeats > 0 ? Math.round((bookedSeats / j.totalSeats) * 100) : 0;
+    return { ...j, bookedSeats, occupancyPct, confirmedRevenue };
+  });
+}

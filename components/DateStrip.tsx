@@ -17,9 +17,9 @@ export default function DateStrip({ centerDate, origin, destination }: any) {
   return (
     <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-hide">
       <button
-        onClick={() => goToDate(addDays(center, -7))}
+        onClick={() => goToDate(addDays(center, -1))}
         className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-teal-300 hover:bg-teal-50 transition-colors shrink-0"
-        aria-label="Previous week"
+        aria-label="Previous day"
       >
         <ChevronLeft className="h-4 w-4 text-slate-500" />
       </button>
@@ -45,9 +45,9 @@ export default function DateStrip({ centerDate, origin, destination }: any) {
       })}
 
       <button
-        onClick={() => goToDate(addDays(center, 7))}
+        onClick={() => goToDate(addDays(center, 1))}
         className="p-1.5 rounded-lg border border-slate-200 bg-white hover:border-teal-300 hover:bg-teal-50 transition-colors shrink-0"
-        aria-label="Next week"
+        aria-label="Next day"
       >
         <ChevronRight className="h-4 w-4 text-slate-500" />
       </button>
