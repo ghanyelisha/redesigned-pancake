@@ -149,7 +149,12 @@ export default function JourneysPage() {
                 pageRows.map((j) => (
                   <tr key={j.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-3 py-3 font-medium text-slate-800 whitespace-nowrap">
-                      {j.origin} → {j.destination}
+                      <Link
+                        href={`/admin/journeys/${j.id}/seats`}
+                        className="text-teal-700 font-semibold hover:text-teal-900 hover:underline transition-colors"
+                      >
+                        {j.origin} → {j.destination}
+                      </Link>
                     </td>
                     <td className="px-3 py-3 text-slate-600 whitespace-nowrap">{fmtDate(j.departureDate)}</td>
                     <td className="px-3 py-3 text-slate-600">{j.departureTime}</td>
